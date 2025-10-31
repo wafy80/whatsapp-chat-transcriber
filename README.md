@@ -62,6 +62,15 @@ python3 main.py "chat.zip" -l en
 python3 main.py --batch
 ```
 
+**Or use the convenience wrapper:**
+```bash
+# Automatically sets up environment
+./convert.sh "chat.zip"
+
+# Verify setup
+./check_setup.sh
+```
+
 ## 📋 Requirements
 
 - Python 3.8+
@@ -96,9 +105,16 @@ python3 main.py chat.zip -o output.pdf
 # Specify language for transcription
 python3 main.py chat.zip -l en
 
-# Using the wrapper script
-./convert.sh chat.zip -l en
+# Using the wrapper script (easier)
+./convert.sh chat.zip
+./convert.sh chat.zip -o output.pdf -l en
 ```
+
+**Tip**: The `convert.sh` wrapper script automatically:
+- Creates virtual environment if needed
+- Installs dependencies
+- Activates the environment
+- Runs the transcriber
 
 ### Batch Mode
 
@@ -291,6 +307,7 @@ See `languages/README.md` to add new translations.
 WhatsappTranscriber/
 ├── main.py                 # Main script
 ├── convert.sh              # Wrapper script
+├── check_setup.sh          # Environment verification script
 ├── config.example.ini      # Example configuration
 ├── requirements.txt        # Python dependencies
 ├── templates/              # HTML templates
@@ -308,6 +325,31 @@ WhatsappTranscriber/
 ├── LICENSE                 # MIT License
 └── README.md              # This file
 ```
+
+## 🛠️ Helper Scripts
+
+### convert.sh
+Convenience wrapper that handles environment setup automatically:
+```bash
+./convert.sh chat.zip              # Single file
+./convert.sh --batch               # All .zip files  
+./convert.sh chat.zip -l en        # With language
+./convert.sh --help                # Show help
+```
+
+### check_setup.sh
+Verifies your environment is correctly configured:
+```bash
+./check_setup.sh
+```
+
+This checks:
+- ✅ Python 3 installation
+- ✅ Virtual environment
+- ✅ Required dependencies (ReportLab, Pillow, PyDub, Whisper)
+- ✅ FFmpeg availability
+- ✅ Project files integrity
+
 
 ## 📥 Exporting Chats from WhatsApp
 

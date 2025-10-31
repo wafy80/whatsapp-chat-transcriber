@@ -1,5 +1,5 @@
 #!/bin/bash
-# WhatsApp Chat to PDF Converter - Wrapper Script
+# WhatsApp Chat to PDF Transcriber - Wrapper Script
 
 set -e
 
@@ -8,7 +8,7 @@ cd "$SCRIPT_DIR"
 
 # Show help if requested
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    echo "WhatsApp Chat to PDF Converter"
+    echo "WhatsApp Chat to PDF Transcriber"
     echo ""
     echo "Single file mode:"
     echo "  ./convert.sh <zip_file> [-o output.pdf] [-l language]"
@@ -19,11 +19,11 @@ if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     echo "Examples:"
     echo "  # Single file"
     echo "  ./convert.sh 'Chat.zip'"
-    echo "  ./convert.sh 'Chat.zip' -o 'output.pdf' -l it"
+    echo "  ./convert.sh 'Chat.zip' -o 'output.pdf' -l en"
     echo ""
     echo "  # Batch mode (all .zip files)"
     echo "  ./convert.sh --batch"
-    echo "  ./convert.sh --batch -l it"
+    echo "  ./convert.sh --batch -l en"
     echo "  ./convert.sh --batch --skip-existing"
     echo ""
     echo "For more help:"
@@ -36,10 +36,11 @@ if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
     python3 -m venv venv
     source venv/bin/activate
-    pip install -q reportlab pillow pydub openai-whisper
+    echo "Installing dependencies..."
+    pip install -q -r requirements.txt
 else
     source venv/bin/activate
 fi
 
-# Run the converter with all arguments
+# Run the transcriber with all arguments
 python3 main.py "$@"

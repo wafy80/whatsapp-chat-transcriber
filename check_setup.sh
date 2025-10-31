@@ -1,9 +1,9 @@
 #!/bin/bash
-# Health check script for WhatsApp Chat to PDF Converter
+# Health check script for WhatsApp Chat to PDF Transcriber
 
 set -e
 
-echo "🔍 Verificando ambiente WhatsApp Chat to PDF Converter..."
+echo "🔍 Checking WhatsApp Chat to PDF Transcriber environment..."
 echo ""
 
 # Check Python
@@ -12,10 +12,10 @@ python3 --version
 
 # Check venv
 if [ -d "venv" ]; then
-    echo "✓ Virtual Environment: trovato"
+    echo "✓ Virtual Environment: found"
 else
-    echo "⚠️  Virtual Environment: non trovato"
-    echo "  Esegui: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
+    echo "⚠️  Virtual Environment: not found"
+    echo "  Run: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
     exit 1
 fi
 
@@ -24,13 +24,13 @@ source venv/bin/activate
 
 # Check dependencies
 echo ""
-echo "📦 Verificando dipendenze..."
+echo "📦 Checking dependencies..."
 
 check_package() {
     if python3 -c "import $1" 2>/dev/null; then
         echo "✓ $2"
     else
-        echo "✗ $2 - MANCANTE"
+        echo "✗ $2 - MISSING"
         return 1
     fi
 }
@@ -46,37 +46,39 @@ echo -n "✓ FFmpeg: "
 if command -v ffmpeg &> /dev/null; then
     ffmpeg -version | head -1
 else
-    echo "⚠️  NON TROVATO - Audio transcription potrebbe non funzionare"
+    echo "⚠️  NOT FOUND - Audio transcription may not work"
 fi
 
 # Check main.py
 echo ""
 if [ -f "main.py" ]; then
-    echo "✓ main.py: trovato"
+    echo "✓ main.py: found"
 else
-    echo "✗ main.py: NON TROVATO"
+    echo "✗ main.py: NOT FOUND"
     exit 1
 fi
 
 if [ -f "convert.sh" ]; then
-    echo "✓ convert.sh: trovato"
+    echo "✓ convert.sh: found"
 else
-    echo "✗ convert.sh: NON TROVATO"
+    echo "✗ convert.sh: NOT FOUND"
     exit 1
 fi
 
 # Check example zips
 echo ""
-echo "📁 File di esempio disponibili:"
+echo "📁 Available chat files:"
 if ls *.zip 1> /dev/null 2>&1; then
     ls -lh *.zip | awk '{print "  " $9 " (" $5 ")"}'
 else
-    echo "  ⚠️  Nessun file .zip trovato"
+    echo "  ⚠️  No .zip files found"
 fi
 
 echo ""
-echo "✅ Setup completato! Pronto per l'uso."
+echo "✅ Setup complete! Ready to use."
 echo ""
-echo "Uso:"
-echo "  ./convert.sh 'Chat WhatsApp.zip'"
-echo "  ./convert.sh 'Chat WhatsApp.zip' 'output.pdf'"
+echo "Usage:"
+echo "  ./convert.sh 'WhatsApp Chat.zip'"
+echo "  ./convert.sh 'WhatsApp Chat.zip' -o 'output.pdf' -l en"
+echo "  ./convert.sh --batch"
+
