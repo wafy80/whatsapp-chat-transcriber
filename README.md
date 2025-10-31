@@ -8,13 +8,11 @@ Convert WhatsApp chat exports to beautifully formatted PDFs with automatic audio
 - 🎙️ **AI-powered audio transcription** using OpenAI Whisper
 - 🖼️ **Embedded images** directly in PDF
 - 📎 **Media file references** (documents, videos)
-- 🌍 **100+ languages supported** (auto-detect or manual selection)
-- ⚙️ **Highly customizable** (40+ layout parameters)
-- 🎨 **3 rendering systems**:
-  - Legacy (simple, hardcoded)
-  - Markup Template (custom syntax)
-  - **HTML Template** (maximum flexibility) ⭐
-- 💾 **Smart caching** (instant regeneration)
+- 🌍 **100+ languages supported** (6 built-in translations + auto-detect)
+- 🎨 **Customizable HTML templates** (WhatsApp-style layouts)
+- 🌐 **Multi-language interface** (language files in `languages/` folder)
+- ⚙️ **Highly customizable** (colors, fonts, spacing)
+- 💾 **Smart caching** (instant regeneration, up to 98% time savings)
 - 🔄 **Batch processing** (multiple chats at once)
 - 🔒 **Privacy options** (exclude images)
 
@@ -154,7 +152,7 @@ message_alignment = JUSTIFY  # LEFT, CENTER, RIGHT, JUSTIFY
 ```ini
 [COLORS]
 title_color = 075E54        # Hex color without #
-sender_color = 25D366
+sender_color = 25D366       # WhatsApp green
 media_color = 0084FF
 system_color = 808080
 ```
@@ -165,28 +163,31 @@ system_color = 808080
 exclude_images = false      # Set to true to exclude images from PDF
 ```
 
-### Template Systems
-
-**1. Legacy (Default)** - Simple, hardcoded layout
-```ini
-[TEMPLATE]
-enabled = false
-html_enabled = false
-```
-
-**2. Markup Template** - Custom syntax for flexibility
-```ini
-[TEMPLATE]
-enabled = true
-message_format = [style:sender]{sender}[/style]: {text}
-```
-
-**3. HTML Template** ⭐ **Recommended** - Maximum flexibility
+**HTML Templates**
 ```ini
 [HTML_TEMPLATE]
-enabled = true
-template_file = template.html
+enabled = true                    # HTML templates enabled by default
+template_file = template.html     # WhatsApp-style layout
+show_stats = true                 # Show message/media statistics
 ```
+
+Available templates:
+- `template.html` - Full WhatsApp-style layout (default)
+- `template_minimal.html` - Minimal clean layout
+- `template_simple.html` - Simple text-based layout
+
+**Language Translation**
+```ini
+[LANGUAGE]
+code = en                         # en, es, fr, de, it, pt
+```
+
+The program loads language-specific strings from `languages/XX.ini` files. These control:
+- Pattern matching in exported WhatsApp files ("file attached" vs "archivo adjunto")
+- Labels in the PDF ("Audio:", "IMAGE", etc.)
+- System messages
+
+See `languages/README.md` for how to add new languages.
 
 ## 💾 Transcription Cache
 
@@ -204,9 +205,11 @@ python3 main.py chat.zip -o chat_v2.pdf
 
 The cache is stored in `.transcription_cache/` directory and is automatically created when needed.
 
-## 🌍 Supported Languages
+## 🌍 Language Support
 
-100+ languages supported by Whisper AI:
+### Whisper Transcription Languages
+
+Whisper AI supports 100+ languages for audio transcription:
 
 - `en` - English
 - `es` - Spanish
@@ -222,7 +225,37 @@ The cache is stored in `.transcription_cache/` directory and is automatically cr
 - `ko` - Korean
 - And many more...
 
-**Tip**: Specifying the language is faster than auto-detect (up to 50% faster).
+**Tip**: Specifying the language with `-l` is faster than auto-detect (up to 50% faster).
+
+### Interface Translations
+
+Built-in translations for the PDF interface (labels, patterns, messages):
+
+| Language | Code | File | Status |
+|----------|------|------|--------|
+| 🇬🇧 English | `en` | `languages/en.ini` | ✅ Default |
+| 🇪🇸 Spanish | `es` | `languages/es.ini` | ✅ Complete |
+| 🇫🇷 French | `fr` | `languages/fr.ini` | ✅ Complete |
+| 🇩🇪 German | `de` | `languages/de.ini` | ✅ Complete |
+| 🇮🇹 Italian | `it` | `languages/it.ini` | ✅ Complete |
+| 🇵🇹 Portuguese | `pt` | `languages/pt.ini` | ✅ Complete |
+
+These files control:
+- WhatsApp export patterns ("file attached" vs "archivo adjunto")
+- PDF labels ("Audio:", "IMAGE", "VIDEO", etc.)
+- System messages
+
+To use a different language:
+```bash
+# Set in config.ini
+[LANGUAGE]
+code = es
+
+# Or use command line
+python3 main.py chat.zip -l es
+```
+
+See `languages/README.md` to add new translations.
 
 ## 📂 Project Structure
 
@@ -323,58 +356,80 @@ python3 main.py --batch
 python3 main.py --batch --skip-existing
 ```
 
-## 🔧 Advanced Features
+## 🔧 Advanced Customization
 
 ### HTML Templates
 
-Create custom PDF layouts using HTML:
+The project uses HTML templates for PDF generation. You can customize the layout by editing or creating your own template:
 
+**Template Variables:**
+- `{{chat_title}}` - Chat name
+- `{{generation_date}}` - PDF generation date
+- `{{total_messages}}` - Message count
+- `{{total_media}}` - Media files count
+- `{{total_transcriptions}}` - Transcribed audio count
+
+**Message Loop:**
 ```html
-<!-- template.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        .message.user { background: #DCF8C6; }
-        .message.other { background: #FFFFFF; }
-    </style>
-</head>
-<body>
-    <h1>{{chat_title}}</h1>
-    {{#each messages}}
-        <div class="message {{this.message_class}}">
-            <strong>{{this.sender}}</strong>
-            <span>{{this.time}}</span>
-            <p>{{this.text}}</p>
-            {{#if this.transcription}}
-                <em>🎙️ {{this.transcription}}</em>
-            {{/if}}
-        </div>
-    {{/each}}
-</body>
-</html>
+{{#each messages}}
+  <div class="message {{this.message_class}}">
+    <strong>{{this.sender}}</strong>
+    <span>{{this.time}}</span>
+    <p>{{this.text}}</p>
+    {{#if this.transcription}}
+      <em>🎙️ {{this.transcription}}</em>
+    {{/if}}
+    {{#if this.media}}
+      <!-- Media handling -->
+    {{/if}}
+  </div>
+{{/each}}
 ```
 
-### Language Files
+**Conditionals:**
+- `{{#if condition}}...{{/if}}` - Show if true
+- `{{#if condition}}...{{else}}...{{/if}}` - If-else
+- `{{#each array}}...{{/each}}` - Loop through array
 
-Customize language-specific patterns:
+**Available templates:**
+1. `template.html` - WhatsApp-style with green bubbles and statistics
+2. `template_minimal.html` - Clean minimal design
+3. `template_simple.html` - Simple text-based layout
 
+To use a different template, edit `config.ini`:
 ```ini
-# languages/en.ini
+[HTML_TEMPLATE]
+enabled = true
+template_file = template_minimal.html
+```
+
+### Language Translation Files
+
+Interface strings are stored in `languages/XX.ini` files. Create new translations by copying an existing file:
+
+```bash
+cp languages/en.ini languages/ja.ini
+```
+
+Then edit the strings:
+```ini
 [PATTERNS]
-attached_file = file attached
-zip_pattern = WhatsApp Chat with 
+# Must match WhatsApp export format in your language
+attached_file = 添付ファイル
 
 [LABELS]
-audio = Audio:
-image = IMAGE
-video = VIDEO
-document = DOCUMENT
+# Labels shown in PDF
+audio = オーディオ:
+image = 画像
+video = ビデオ
 
 [MESSAGES]
-image_excluded = excluded for privacy
-transcription_failed = Transcription failed
+# System messages
+image_excluded = プライバシーのため除外
+transcription_failed = 転写に失敗しました
 ```
+
+See `languages/README.md` for detailed instructions.
 
 ## 🆘 Troubleshooting
 

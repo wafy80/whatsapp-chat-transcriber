@@ -39,13 +39,13 @@ config.ini
 
 # Generated files
 *.pdf
+*.zip
 /temp_extract/
 .whisper/
 .transcription_cache/
+_*
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Local config
-config.ini
