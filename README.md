@@ -1,6 +1,32 @@
 # WhatsApp Chat to PDF Transcriber
 
+[![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)](https://github.com/wafy80/whatsapp-chat-transcriber)
+[![GitHub stars](https://img.shields.io/github/stars/wafy80/whatsapp-chat-transcriber.svg)](https://github.com/wafy80/whatsapp-chat-transcriber/stargazers)
+
 Convert WhatsApp chat exports to beautifully formatted PDFs with automatic audio transcription using AI.
+
+> **⭐ Star this repo if you find it useful!**
+
+## 📸 Screenshots
+
+<details>
+<summary>Click to see examples</summary>
+
+### WhatsApp-Style Layout (Default)
+Beautiful chat bubbles with green messages and audio transcriptions
+<!-- ![WhatsApp Style](docs/screenshots/whatsapp-style.png) -->
+
+### Minimal Layout
+Clean, simple design perfect for archiving
+<!-- ![Minimal Style](docs/screenshots/minimal-style.png) -->
+
+### Sample Output
+Generated PDF with embedded images and transcribed audio
+<!-- ![Sample PDF](docs/screenshots/sample-output.png) -->
+
+</details>
 
 ## ✨ Features
 
@@ -498,6 +524,21 @@ python3 main.py --batch --pattern "WhatsApp*.zip"
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+- Reporting bugs
+- Suggesting enhancements
+- Adding language translations
+- Creating templates
+- Code contributions
+
+**Ways to contribute:**
+- 🐛 Report bugs
+- 💡 Suggest features
+- 🌍 Add language translations
+- 🎨 Create new templates
+- 📝 Improve documentation
+- ⭐ Star this repository
 
 ## 📄 License
 
