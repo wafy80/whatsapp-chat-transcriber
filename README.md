@@ -1,6 +1,6 @@
 # WhatsApp Chat to PDF Transcriber
 
-[![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)](https://github.com/wafy80/whatsapp-chat-transcriber)
 [![CI](https://github.com/wafy80/whatsapp-chat-transcriber/workflows/CI/badge.svg)](https://github.com/wafy80/whatsapp-chat-transcriber/actions)
@@ -64,7 +64,7 @@ python3 main.py --batch
 
 ## 📋 Requirements
 
-- Python 3.7+
+- Python 3.8+
 - ffmpeg (for audio conversion)
 - ~500 MB disk space (for Whisper model)
 
