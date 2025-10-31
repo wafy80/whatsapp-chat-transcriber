@@ -129,32 +129,32 @@ class WhatsAppChatToPDF:
         lang_file = os.path.join(script_dir, 'languages', f'{lang_code}.ini')
         
         # Try to load language file
-        lang_config = configparser.ConfigParser()
+        self.lang_config = configparser.ConfigParser()
         loaded_from_file = False
         
         if os.path.exists(lang_file):
             try:
-                lang_config.read(lang_file, encoding='utf-8')
+                self.lang_config.read(lang_file, encoding='utf-8')
                 loaded_from_file = True
                 print(f"🌍 Loaded language file: languages/{lang_code}.ini")
             except Exception as e:
                 print(f"⚠️  Failed to load language file {lang_file}: {e}")
         
         # Load strings from language file or fallback to config.ini
-        if loaded_from_file and 'PATTERNS' in lang_config:
-            self.str_attached_file = lang_config.get('PATTERNS', 'attached_file', fallback='file attached')
-            self.str_zip_pattern = lang_config.get('PATTERNS', 'zip_pattern', fallback='WhatsApp Chat with ')
+        if loaded_from_file and 'PATTERNS' in self.lang_config:
+            self.str_attached_file = self.lang_config.get('PATTERNS', 'attached_file', fallback='file attached')
+            self.str_zip_pattern = self.lang_config.get('PATTERNS', 'zip_pattern', fallback='WhatsApp Chat with ')
         else:
             # Fallback to config.ini [LANGUAGE_STRINGS]
             self.str_attached_file = self.config.get('LANGUAGE_STRINGS', 'attached_file_pattern', fallback='file attached')
             self.str_zip_pattern = self.config.get('HTML_TEMPLATE', 'zip_pattern', fallback='WhatsApp Chat with ')
         
-        if loaded_from_file and 'LABELS' in lang_config:
-            self.str_audio_label = lang_config.get('LABELS', 'audio', fallback='Audio:')
-            self.str_image_label = lang_config.get('LABELS', 'image', fallback='IMAGE')
-            self.str_video_label = lang_config.get('LABELS', 'video', fallback='VIDEO')
-            self.str_document_label = lang_config.get('LABELS', 'document', fallback='DOCUMENT')
-            self.str_media_prefix = lang_config.get('LABELS', 'media', fallback='')
+        if loaded_from_file and 'LABELS' in self.lang_config:
+            self.str_audio_label = self.lang_config.get('LABELS', 'audio', fallback='Audio:')
+            self.str_image_label = self.lang_config.get('LABELS', 'image', fallback='IMAGE')
+            self.str_video_label = self.lang_config.get('LABELS', 'video', fallback='VIDEO')
+            self.str_document_label = self.lang_config.get('LABELS', 'document', fallback='DOCUMENT')
+            self.str_media_prefix = self.lang_config.get('LABELS', 'media', fallback='')
         else:
             # Fallback to config.ini [LANGUAGE_STRINGS]
             self.str_audio_label = self.config.get('LANGUAGE_STRINGS', 'audio_label', fallback='Audio:')
@@ -163,20 +163,20 @@ class WhatsAppChatToPDF:
             self.str_document_label = 'DOCUMENT'
             self.str_media_prefix = self.config.get('LANGUAGE_STRINGS', 'media_prefix', fallback='')
         
-        if loaded_from_file and 'MESSAGES' in lang_config:
-            self.str_image_excluded = lang_config.get('MESSAGES', 'image_excluded', fallback='excluded for privacy')
-            self.str_transcription_failed = lang_config.get('MESSAGES', 'transcription_failed', fallback='Transcription failed')
+        if loaded_from_file and 'MESSAGES' in self.lang_config:
+            self.str_image_excluded = self.lang_config.get('MESSAGES', 'image_excluded', fallback='excluded for privacy')
+            self.str_transcription_failed = self.lang_config.get('MESSAGES', 'transcription_failed', fallback='Transcription failed')
         else:
             # Fallback to config.ini [LANGUAGE_STRINGS]
             self.str_image_excluded = self.config.get('LANGUAGE_STRINGS', 'image_excluded_text', fallback='excluded for privacy')
             self.str_transcription_failed = 'Transcription failed'
         
         # UI messages (optional, for future use)
-        if loaded_from_file and 'UI' in lang_config:
-            self.str_ui_processing = lang_config.get('UI', 'processing', fallback='Processing')
-            self.str_ui_extracting = lang_config.get('UI', 'extracting', fallback='Extracting')
-            self.str_ui_parsing = lang_config.get('UI', 'parsing', fallback='Parsing')
-            self.str_ui_transcribing = lang_config.get('UI', 'transcribing', fallback='Transcribing')
+        if loaded_from_file and 'UI' in self.lang_config:
+            self.str_ui_processing = self.lang_config.get('UI', 'processing', fallback='Processing')
+            self.str_ui_extracting = self.lang_config.get('UI', 'extracting', fallback='Extracting')
+            self.str_ui_parsing = self.lang_config.get('UI', 'parsing', fallback='Parsing')
+            self.str_ui_transcribing = self.lang_config.get('UI', 'transcribing', fallback='Transcribing')
         else:
             self.str_ui_processing = 'Processing'
             self.str_ui_extracting = 'Extracting'
