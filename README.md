@@ -227,9 +227,15 @@ code = en                         # en, es, fr, de, it, pt
 ```
 
 The program loads language-specific strings from `languages/XX.ini` files. These control:
-- Pattern matching in exported WhatsApp files ("file attached" vs "archivo adjunto")
-- Labels in the PDF ("Audio:", "IMAGE", etc.)
-- System messages
+- **Pattern matching** in exported WhatsApp files
+  - "file attached" (English)
+  - "archivo adjunto" (Spanish)
+  - "fichier joint" (French)
+- **PDF labels**: "Audio:", "IMAGE", "VIDEO", "DOCUMENT"
+- **System messages**: "excluded for privacy", "Transcription failed"
+
+**Note**: All language-dependent strings are now in `languages/` folder.
+The config file no longer contains language strings.
 
 See `languages/README.md` for how to add new languages.
 
