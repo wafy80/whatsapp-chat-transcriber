@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="{{language_code}}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -330,15 +330,15 @@
             <div class="stats-panel">
                 <div class="stat-item">
                     <span class="stat-number">{{total_messages}}</span>
-                    <span class="stat-label">Messaggi</span>
+                    <span class="stat-label">{{label_messages}}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-number">{{total_media}}</span>
-                    <span class="stat-label">Media</span>
+                    <span class="stat-label">{{label_media}}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-number">{{total_transcriptions}}</span>
-                    <span class="stat-label">Audio</span>
+                    <span class="stat-label">{{label_audio}}</span>
                 </div>
             </div>
         </div>
@@ -389,7 +389,7 @@
         
         <!-- Footer -->
         <div class="chat-footer">
-            <div style="margin-bottom: 5px;">🔒 Chat transcript generata da WhatsApp Transcriber</div>
+            <div style="margin-bottom: 5px;">🔒 {{label_footer_generated}}</div>
             {{#if footer_text}}
             <div>{{footer_text}}</div>
             {{/if}}

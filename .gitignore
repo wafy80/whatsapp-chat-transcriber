@@ -44,6 +44,7 @@ config.ini
 .whisper/
 .transcription_cache/
 _*
+*_log.txt
 
 # OS
 .DS_Store
