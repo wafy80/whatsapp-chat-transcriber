@@ -25,6 +25,10 @@ version = 1.0
 translator = Translator Name
 
 [PATTERNS]
+# Pattern to extract contact name from ZIP filename
+# Example: "WhatsApp Chat with John.zip" → extracts "John"
+zip_pattern = WhatsApp Chat with 
+
 # Patterns used by WhatsApp in exported .txt file
 attached_file = file attached
 
