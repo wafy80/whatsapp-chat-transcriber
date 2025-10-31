@@ -40,11 +40,11 @@ config.ini
 # Generated files
 *.pdf
 *.zip
+*.txt
 /temp_extract/
 .whisper/
 .transcription_cache/
 _*
-*_log.txt
 
 # OS
 .DS_Store
