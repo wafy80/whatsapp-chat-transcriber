@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{chat_title}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+        .message { margin-bottom: 10px; padding: 8px; }
+        .sender { font-weight: bold; color: #075E54; }
+        .time { color: #999; font-size: 0.9em; }
+        .text { margin-top: 5px; }
+        .transcription { background: #E3F2FD; padding: 5px; margin-top: 5px; font-style: italic; }
+        .system { text-align: center; color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WhatsApp Chat</h1>
+        <h2>{{chat_title}}</h2>
+        <p>{{generation_date}}</p>
+    </div>
+    
+    {{#each messages}}
+    <div class="message {{#if this.is_system}}system{{/if}}">
+        {{#unless this.is_system}}
+        <div class="sender">{{this.sender}}</div>
+        <div class="time">{{this.date}} {{this.time}}</div>
+        {{/unless}}
+        <div class="text">{{this.text}}</div>
+        {{#if this.transcription}}
+        <div class="transcription">🎙️ {{this.transcription}}</div>
+        {{/if}}
+    </div>
+    {{/each}}
+</body>
+</html>

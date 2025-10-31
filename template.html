@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{chat_title}}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm 1cm;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #e5ddd5;
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.03) 10px, rgba(255,255,255,.03) 20px),
+                repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0,0,0,.02) 10px, rgba(0,0,0,.02) 20px);
+            padding: 0;
+            margin: 0;
+        }
+        
+        .chat-container {
+            max-width: 100%;
+            margin: 0;
+            min-height: 100vh;
+            background: #e5ddd5;
+            position: relative;
+        }
+        
+        .chat-header {
+            background: #075e54;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .chat-header .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+        }
+        
+        .chat-header .info {
+            flex: 1;
+        }
+        
+        .chat-header .name {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        
+        .chat-header .subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .messages-area {
+            padding: 20px;
+            padding-bottom: 60px;
+        }
+        
+        .date-divider {
+            text-align: center;
+            margin: 20px 0 15px;
+        }
+        
+        .date-divider span {
+            background: #e1f3fb;
+            color: #54656f;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 12px;
+            display: inline-block;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+        }
+        
+        .message-wrapper {
+            display: flex;
+            margin-bottom: 8px;
+            clear: both;
+        }
+        
+        .message-wrapper.user {
+            justify-content: flex-end;
+        }
+        
+        .message-wrapper.other {
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 65%;
+            position: relative;
+            padding: 6px 7px 8px 9px;
+            border-radius: 7.5px;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+            word-wrap: break-word;
+        }
+        
+        .message-wrapper.user .message-bubble {
+            background: #d9fdd3;
+        }
+        
+        .message-wrapper.user .message-bubble::before {
+            content: '';
+            position: absolute;
+            right: -8px;
+            bottom: 3px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid #d9fdd3;
+            border-top: 8px solid transparent;
+            border-bottom: 0px solid transparent;
+        }
+        
+        .message-wrapper.other .message-bubble {
+            background: #ffffff;
+            border: 1px solid #d1d7db;
+        }
+        
+        .message-wrapper.other .message-bubble::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            bottom: 3px;
+            width: 0;
+            height: 0;
+            border-right: 8px solid #ffffff;
+            border-top: 8px solid transparent;
+            border-bottom: 0px solid transparent;
+            filter: drop-shadow(-1px 0px 0px #d1d7db);
+        }
+        
+        .message-wrapper.system {
+            justify-content: center;
+        }
+        
+        .message-wrapper.system .message-bubble {
+            background: #e1f3fb;
+            color: #54656f;
+            font-size: 12px;
+            max-width: 80%;
+            text-align: center;
+            padding: 5px 12px;
+        }
+        
+        .message-sender {
+            font-size: 12.5px;
+            font-weight: 500;
+            color: #00897b;
+            margin-bottom: 3px;
+        }
+        
+        .message-wrapper.user .message-sender {
+            color: #667781;
+        }
+        
+        .message-text {
+            font-size: 14.2px;
+            line-height: 19px;
+            color: #111b21;
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding-right: 60px;
+            position: relative;
+        }
+        
+        .message-time {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            font-size: 11px;
+            color: #667781;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding-left: 8px;
+            background: linear-gradient(to left, rgba(255,255,255,0.8) 60%, transparent);
+        }
+        
+        .message-wrapper.user .message-time {
+            color: #667781;
+            background: linear-gradient(to left, rgba(217,253,211,0.8) 60%, transparent);
+        }
+        
+        .message-time::after {
+            content: '';
+        }
+        
+        .message-wrapper.user .message-time::after {
+            content: '✓✓';
+            color: #53bdeb;
+            font-size: 13px;
+            margin-left: 2px;
+        }
+        
+        .transcription {
+            background: #fff9e6;
+            border-left: 3px solid #ffc107;
+            padding: 6px 8px;
+            margin-top: 5px;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #5f5f5f;
+        }
+        
+        .transcription::before {
+            content: '🎙️ ';
+            margin-right: 4px;
+        }
+        
+        .media-wrapper {
+            margin-top: 5px;
+            max-width: 100%;
+        }
+        
+        .media-wrapper img {
+            max-width: 100%;
+            border-radius: 5px;
+            display: block;
+        }
+        
+        .media-file {
+            background: rgba(0,0,0,0.05);
+            padding: 8px 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #111b21;
+        }
+        
+        .media-file::before {
+            content: '📎';
+            font-size: 16px;
+        }
+        
+        .chat-footer {
+            background: #f0f2f5;
+            border-top: 1px solid #d1d7db;
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 11px;
+            color: #667781;
+            position: sticky;
+            bottom: 0;
+        }
+        
+        {{#if show_stats}}
+        .stats-panel {
+            background: white;
+            margin: 0 20px 20px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #25d366;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #667781;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        {{/if}}
+        
+        @media print {
+            body {
+                background: white;
+            }
+            .chat-header {
+                position: relative;
+            }
+            .chat-footer {
+                position: relative;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- WhatsApp Header -->
+        <div class="chat-header">
+            <div class="avatar">💬</div>
+            <div class="info">
+                <div class="name">{{chat_title}}</div>
+                <div class="subtitle">Esportato il {{generation_date}}</div>
+            </div>
+        </div>
+        
+        <!-- Statistics Panel -->
+        {{#if show_stats}}
+        <div style="padding-top: 20px;">
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <span class="stat-number">{{total_messages}}</span>
+                    <span class="stat-label">Messaggi</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{total_media}}</span>
+                    <span class="stat-label">Media</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{total_transcriptions}}</span>
+                    <span class="stat-label">Audio</span>
+                </div>
+            </div>
+        </div>
+        {{/if}}
+        
+        <!-- Messages Area -->
+        <div class="messages-area">
+            {{#each messages}}
+            {{#if this.show_date}}
+            <!-- Date Divider -->
+            <div class="date-divider"><span>{{this.current_date}}</span></div>
+            {{/if}}
+            
+            {{#if this.is_system}}
+            <!-- System Message -->
+            <div class="message-wrapper system">
+                <div class="message-bubble">
+                    <div class="message-text">{{this.text}}</div>
+                </div>
+            </div>
+            {{else}}
+            <!-- Regular Message -->
+            <div class="message-wrapper {{this.message_class}}">
+                <div class="message-bubble">
+                    {{#unless this.is_system}}
+                    <div class="message-sender">{{this.sender}}</div>
+                    {{/unless}}
+                    <div class="message-text">{{this.text}}<span class="message-time">{{this.time}}</span></div>
+                    
+                    {{#if this.transcription}}
+                    <div class="transcription">{{this.transcription}}</div>
+                    {{/if}}
+                    
+                    {{#if this.media}}
+                    <div class="media-wrapper">
+                        {{#if this.media.is_image}}
+                        <img src="{{this.media.path}}" alt="{{this.media.filename}}">
+                        {{else}}
+                        <div class="media-file">{{this.media.filename}}</div>
+                        {{/if}}
+                    </div>
+                    {{/if}}
+                </div>
+            </div>
+            {{/if}}
+            {{/each}}
+        </div>
+        
+        <!-- Footer -->
+        <div class="chat-footer">
+            <div style="margin-bottom: 5px;">🔒 Chat transcript generata da WhatsApp Transcriber</div>
+            {{#if footer_text}}
+            <div>{{footer_text}}</div>
+            {{/if}}
+        </div>
+    </div>
+</body>
+</html>

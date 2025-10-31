@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{chat_title}} - Transcript</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 1em;
+            margin-bottom: 2em;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 18pt;
+        }
+        
+        .header h2 {
+            margin: 0.5em 0 0 0;
+            font-size: 14pt;
+            color: #666;
+        }
+        
+        .header .date {
+            margin-top: 0.5em;
+            font-size: 9pt;
+            color: #999;
+        }
+        
+        .message {
+            margin-bottom: 1em;
+            page-break-inside: avoid;
+        }
+        
+        .message.system {
+            text-align: center;
+            font-style: italic;
+            color: #888;
+            font-size: 9pt;
+            margin: 1em 0;
+        }
+        
+        .message-header {
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 0.2em;
+        }
+        
+        .message-meta {
+            font-size: 9pt;
+            color: #666;
+        }
+        
+        .message-text {
+            margin-top: 0.3em;
+            color: #333;
+        }
+        
+        .transcription {
+            margin-top: 0.5em;
+            padding: 0.5em;
+            background: #f0f0f0;
+            border-left: 3px solid #666;
+            font-style: italic;
+            font-size: 10pt;
+        }
+        
+        .media {
+            margin-top: 0.5em;
+        }
+        
+        .media img {
+            max-width: 100%;
+            max-height: 400px;
+            display: block;
+            margin-top: 0.5em;
+        }
+        
+        .media-file {
+            padding: 0.5em;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            display: inline-block;
+            font-size: 9pt;
+        }
+        
+        .footer {
+            margin-top: 3em;
+            padding-top: 1em;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 8pt;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WhatsApp Chat Transcript</h1>
+        <h2>{{chat_title}}</h2>
+        <div class="date">Generated: {{generation_date}}</div>
+    </div>
+    
+    <div class="messages">
+        {{#each messages}}
+        {{#if this.is_system}}
+        <div class="message system">
+            {{this.text}}
+        </div>
+        {{else}}
+        <div class="message">
+            <div class="message-header">
+                {{this.sender}}
+                <span class="message-meta">• {{this.date}} {{this.time}}</span>
+            </div>
+            <div class="message-text">{{this.text}}</div>
+            {{#if this.transcription}}
+            <div class="transcription">
+                🎙️ Audio transcription: {{this.transcription}}
+            </div>
+            {{/if}}
+            {{#if this.media}}
+            <div class="media">
+                {{#if this.media.is_image}}
+                <img src="{{this.media.path}}" alt="{{this.media.filename}}">
+                {{else}}
+                <div class="media-file">📎 {{this.media.filename}}</div>
+                {{/if}}
+            </div>
+            {{/if}}
+        </div>
+        {{/if}}
+        {{/each}}
+    </div>
+    
+    <div class="footer">
+        <p>WhatsApp Chat Transcript • {{footer_text}}</p>
+    </div>
+</body>
+</html>
