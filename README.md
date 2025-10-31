@@ -3,6 +3,8 @@
 [![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)](https://github.com/wafy80/whatsapp-chat-transcriber)
+[![CI](https://github.com/wafy80/whatsapp-chat-transcriber/workflows/CI/badge.svg)](https://github.com/wafy80/whatsapp-chat-transcriber/actions)
+[![GitHub release](https://img.shields.io/github/v/release/wafy80/whatsapp-chat-transcriber.svg)](https://github.com/wafy80/whatsapp-chat-transcriber/releases)
 [![GitHub stars](https://img.shields.io/github/stars/wafy80/whatsapp-chat-transcriber.svg)](https://github.com/wafy80/whatsapp-chat-transcriber/stargazers)
 
 Convert WhatsApp chat exports to beautifully formatted PDFs with automatic audio transcription using AI.
