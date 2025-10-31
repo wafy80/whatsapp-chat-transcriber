@@ -12,6 +12,11 @@ This folder contains translation files for WhatsApp Chat to PDF Transcriber.
 | 🇩🇪 German | `de.ini` | `de` | ✅ Complete |
 | 🇮🇹 Italian | `it.ini` | `it` | ✅ Complete |
 | 🇵🇹 Portuguese | `pt.ini` | `pt` | ✅ Complete |
+| 🇯🇵 Japanese | `ja.ini` | `ja` | ✅ Complete |
+| 🇨🇳 Chinese | `zh.ini` | `zh` | ✅ Complete |
+| 🇷🇺 Russian | `ru.ini` | `ru` | ✅ Complete |
+| 🇳🇱 Dutch | `nl.ini` | `nl` | ✅ Complete |
+| 🇰🇷 Korean | `ko.ini` | `ko` | ✅ Complete |
 
 ## 🔧 File Structure
 
@@ -158,4 +163,3 @@ Have you translated WhatsApp Transcriber to a new language?
 
 **Version**: 1.0  
 **Last update**: November 2024
-
