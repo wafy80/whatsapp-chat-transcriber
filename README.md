@@ -167,14 +167,14 @@ exclude_images = false      # Set to true to exclude images from PDF
 ```ini
 [HTML_TEMPLATE]
 enabled = true                    # HTML templates enabled by default
-template_file = template.html     # WhatsApp-style layout
+template_file = templates/template.html     # WhatsApp-style layout
 show_stats = true                 # Show message/media statistics
 ```
 
 Available templates:
-- `template.html` - Full WhatsApp-style layout (default)
-- `template_minimal.html` - Minimal clean layout
-- `template_simple.html` - Simple text-based layout
+- `templates/template.html` - Full WhatsApp-style layout (default)
+- `templates/template_minimal.html` - Minimal clean layout
+- `templates/template_simple.html` - Simple text-based layout
 
 **Language Translation**
 ```ini
@@ -265,16 +265,18 @@ WhatsappTranscriber/
 ├── convert.sh              # Wrapper script
 ├── config.example.ini      # Example configuration
 ├── requirements.txt        # Python dependencies
-├── template.html           # Default HTML template
-├── template_minimal.html   # Minimal HTML template
-├── template_simple.html    # Simple HTML template
+├── templates/              # HTML templates
+│   ├── template.html           # Full WhatsApp-style layout (default)
+│   ├── template_minimal.html   # Minimal clean layout
+│   └── template_simple.html    # Simple text-based layout
 ├── languages/              # Language files
-│   ├── en.ini
-│   ├── es.ini
-│   ├── fr.ini
-│   ├── de.ini
-│   ├── it.ini
-│   └── pt.ini
+│   ├── README.md
+│   ├── en.ini              # English (default)
+│   ├── es.ini              # Spanish
+│   ├── fr.ini              # French
+│   ├── de.ini              # German
+│   ├── it.ini              # Italian
+│   └── pt.ini              # Portuguese
 ├── LICENSE                 # MIT License
 └── README.md              # This file
 ```
@@ -392,15 +394,15 @@ The project uses HTML templates for PDF generation. You can customize the layout
 - `{{#each array}}...{{/each}}` - Loop through array
 
 **Available templates:**
-1. `template.html` - WhatsApp-style with green bubbles and statistics
-2. `template_minimal.html` - Clean minimal design
-3. `template_simple.html` - Simple text-based layout
+1. `templates/template.html` - WhatsApp-style with green bubbles and statistics
+2. `templates/template_minimal.html` - Clean minimal design
+3. `templates/template_simple.html` - Simple text-based layout
 
 To use a different template, edit `config.ini`:
 ```ini
 [HTML_TEMPLATE]
 enabled = true
-template_file = template_minimal.html
+template_file = templates/template_minimal.html
 ```
 
 ### Language Translation Files

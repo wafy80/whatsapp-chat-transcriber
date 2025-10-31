@@ -866,7 +866,7 @@ class WhatsAppChatToPDF:
         
         if html_template_enabled:
             # Get template path from config
-            template_file = self.config.get('HTML_TEMPLATE', 'template_file', fallback='template.html')
+            template_file = self.config.get('HTML_TEMPLATE', 'template_file', fallback='templates/template.html')
             
             # Look for template in script directory
             script_dir = os.path.dirname(os.path.abspath(__file__))
