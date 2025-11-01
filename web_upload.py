@@ -921,28 +921,138 @@ def get_local_ip():
 
 def main():
     parser = argparse.ArgumentParser(description='WhatsApp Chat to PDF Web Upload Server')
+    parser.add_argument('--https', action='store_true', 
+                       help='Enable HTTPS via cloudflared tunnel (required for PWA share on Android)')
+    parser.add_argument('--ngrok', action='store_true',
+                       help='Enable HTTPS via ngrok tunnel (alternative, shows warning page)')
     parser.add_argument('--port', type=int, default=58080, help='Port to listen on (default: 58080)')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     args = parser.parse_args()
 
-    server = HTTPServer((args.host, args.port), UploadHandler)
-    local_ip = get_local_ip()
+    port = args.port
+    cloudflared_process = None
     
-    print("=" * 60)
-    print("WhatsApp Chat to PDF - Web Upload Server")
-    print("=" * 60)
-    print(f"\n✅ Server started successfully!\n")
-    print(f"📱 On your phone, open:")
-    print(f"   http://{local_ip}:{args.port}")
-    print(f"\n💻 On this computer:")
-    print(f"   http://localhost:{args.port}")
-    print(f"\n🔧 Press Ctrl+C to stop the server\n")
-    print("=" * 60)
+    # Start cloudflared tunnel if requested
+    if args.https:
+        try:
+            import subprocess
+            import time
+            import re
+            
+            print("=" * 60)
+            print("WhatsApp Chat to PDF - Web Upload Server")
+            print("=" * 60)
+            print(f"\n🚀 Starting cloudflared tunnel...\n")
+            
+            # Start cloudflared in background
+            cloudflared_process = subprocess.Popen(
+                ['cloudflared', 'tunnel', '--url', f'http://localhost:{port}'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+            
+            # Wait for URL to appear in output
+            https_url = None
+            for line in cloudflared_process.stdout:
+                print(line.strip())
+                if 'trycloudflare.com' in line or '.cfargotunnel.com' in line:
+                    match = re.search(r'https://[^\s]+', line)
+                    if match:
+                        https_url = match.group(0)
+                        break
+            
+            if https_url:
+                print("\n" + "=" * 60)
+                print(f"\n✅ Server started with HTTPS tunnel!\n")
+                print(f"📱 Open this URL on your phone:")
+                print(f"   {https_url}")
+                print(f"\n💡 No warning page! You can use the PWA share feature on Android!")
+                print(f"\n🔧 Press Ctrl+C to stop the server\n")
+                print("=" * 60)
+            else:
+                print(f"\n⚠️ Cloudflared started but URL not detected yet")
+                print(f"   Check the output above for the tunnel URL\n")
+                
+        except FileNotFoundError:
+            print(f"\n❌ ERROR: cloudflared not installed!")
+            print(f"\n   Install instructions:")
+            print(f"   • Linux: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64")
+            print(f"            sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared")
+            print(f"            sudo chmod +x /usr/local/bin/cloudflared")
+            print(f"   • macOS: brew install cloudflared")
+            print(f"   • Windows: Download from https://github.com/cloudflare/cloudflared/releases")
+            print(f"\n   Or use ngrok instead: python3 web_upload.py --ngrok")
+            return
+        except Exception as e:
+            print(f"\n❌ ERROR starting cloudflared: {e}")
+            return
+    
+    # Start ngrok tunnel if requested
+    elif args.ngrok:
+        try:
+            from pyngrok import ngrok
+            
+            # Start ngrok tunnel
+            public_url = ngrok.connect(port, bind_tls=True)
+            https_url = public_url.public_url
+            
+            print("=" * 60)
+            print("WhatsApp Chat to PDF - Web Upload Server")
+            print("=" * 60)
+            print(f"\n✅ Server started with HTTPS tunnel!\n")
+            print(f"📱 Open this URL on your phone:")
+            print(f"   {https_url}")
+            print(f"\n⚠️ Note: ngrok shows a warning page on first visit")
+            print(f"   Alternative: use --https instead for no warning")
+            print(f"\n💡 You can now use the PWA share feature on Android!")
+            print(f"\n🔧 Press Ctrl+C to stop the server\n")
+            print("=" * 60)
+            
+        except ImportError:
+            print(f"\n❌ ERROR: pyngrok not installed!")
+            print(f"\n   Install with: pip install pyngrok")
+            print(f"\n   Then run: python3 web_upload.py --ngrok")
+            return
+        except Exception as e:
+            print(f"\n❌ ERROR starting ngrok: {e}")
+            print(f"\n   Make sure ngrok is configured:")
+            print(f"\n   1. Sign up at https://ngrok.com")
+            print(f"   2. Get your authtoken")
+            print(f"   3. Run: ngrok config add-authtoken YOUR_TOKEN")
+            return
+    else:
+        local_ip = get_local_ip()
+        
+        print("=" * 60)
+        print("WhatsApp Chat to PDF - Web Upload Server")
+        print("=" * 60)
+        print(f"\n✅ Server started successfully!\n")
+        print(f"📱 On your phone, open:")
+        print(f"   http://{local_ip}:{args.port}")
+        print(f"\n💻 On this computer:")
+        print(f"   http://localhost:{args.port}")
+        print(f"\n💡 TIP: For PWA share feature, use HTTPS tunnel:")
+        print(f"   python3 web_upload.py --https  (recommended, no warning)")
+        print(f"   python3 web_upload.py --ngrok  (alternative, has warning page)")
+        print(f"\n🔧 Press Ctrl+C to stop the server\n")
+        print("=" * 60)
+
+    server = HTTPServer((args.host, port), UploadHandler)
     
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n\n👋 Server stopped")
+        if args.https and cloudflared_process:
+            cloudflared_process.terminate()
+            cloudflared_process.wait()
+        if args.ngrok:
+            try:
+                ngrok.disconnect(public_url.public_url)
+            except:
+                pass
         server.shutdown()
 
 

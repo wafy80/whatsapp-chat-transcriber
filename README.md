@@ -97,15 +97,25 @@ Then on your phone:
 **Enable direct sharing from WhatsApp!**
 
 ```bash
-# Install pyngrok if needed
-pip install pyngrok
+# Option 1: Cloudflared (Recommended - No warning page)
+# Install cloudflared first:
+# Linux:
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
+sudo chmod +x /usr/local/bin/cloudflared
+# macOS:
+brew install cloudflared
 
 # Start with HTTPS tunnel
 python3 web_upload.py --https
+
+# Option 2: ngrok (Alternative - Shows warning page on first visit)
+pip install pyngrok
+python3 web_upload.py --ngrok
 ```
 
 **Setup (one time only):**
-1. Open the **HTTPS URL** shown on your phone (e.g., `https://xxxx.ngrok-free.app`)
+1. Open the **HTTPS URL** shown on your phone (e.g., `https://xxxx.trycloudflare.com` or `https://xxxx.ngrok-free.app`)
 2. Tap **"Install app"** or **"Add to Home Screen"**
 3. The "Chat2PDF" app will be installed on your phone
 
@@ -118,7 +128,7 @@ python3 web_upload.py --https
 
 **Requirements:**
 - ✅ **Android + Chrome/Edge** (iOS Safari doesn't support Share Target API)
-- ✅ **Free ngrok account**: [Sign up here](https://ngrok.com) → Get auth token → Run `ngrok config add-authtoken YOUR_TOKEN`
+- ✅ **Cloudflared installed** (recommended) OR **Free ngrok account**: [Sign up here](https://ngrok.com) → Get auth token → Run `ngrok config add-authtoken YOUR_TOKEN`
 
 **Features:**
 - 📱 Mobile-friendly interface
@@ -127,6 +137,7 @@ python3 web_upload.py --https
 - ⚡ Auto processing
 - 📥 Direct PDF download
 - 🔗 **PWA Share Target** (share directly from WhatsApp!)
+- 🚀 **Cloudflared**: No warning pages, instant access
 
 ---
 
