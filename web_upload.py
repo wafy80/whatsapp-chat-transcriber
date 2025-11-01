@@ -15,6 +15,78 @@ import argparse
 class UploadHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Serve the upload form, PWA assets, or download PDF"""
+        # Handle processing endpoint
+        if self.path.startswith('/process?'):
+            from urllib.parse import parse_qs, urlparse
+            
+            query = urlparse(self.path).query
+            params = parse_qs(query)
+            
+            filename = params.get('filename', [''])[0]
+            language = params.get('language', [''])[0]
+            
+            if not filename:
+                self.send_json_response({'success': False, 'error': 'No filename provided'})
+                return
+            
+            filepath = os.path.join('uploads', filename)
+            
+            if not os.path.exists(filepath):
+                self.send_json_response({'success': False, 'error': 'File not found'})
+                return
+            
+            # Process the file
+            try:
+                output_pdf = filename.replace('.zip', '_transcript.pdf')
+                output_path = os.path.join(os.getcwd(), output_pdf)
+                cmd = [sys.executable, 'main.py', filepath, '-o', output_path]
+                
+                if language:
+                    cmd.extend(['-l', language])
+                
+                print(f"Running: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+                print(f"Return code: {result.returncode}")
+                print(f"Output file exists: {os.path.exists(output_path)}")
+                
+                if result.returncode == 0 and os.path.exists(output_path):
+                    # Return PDF directly
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/pdf')
+                    self.send_header('Content-Disposition', f'attachment; filename="{output_pdf}"')
+                    self.send_header('Content-Length', str(os.path.getsize(output_path)))
+                    self.end_headers()
+                    
+                    with open(output_path, 'rb') as f:
+                        self.wfile.write(f.read())
+                    
+                    # Clean up
+                    os.remove(output_path)
+                    return
+                else:
+                    error_msg = result.stderr if result.stderr else 'Unknown error'
+                    self.send_json_response({
+                        'success': False,
+                        'error': f'Processing failed: {error_msg}'
+                    })
+            
+            except subprocess.TimeoutExpired:
+                self.send_json_response({
+                    'success': False,
+                    'error': 'Processing timeout (>10 minutes)'
+                })
+            except Exception as e:
+                self.send_json_response({
+                    'success': False,
+                    'error': str(e)
+                })
+            finally:
+                # Clean up uploaded file
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            
+            return
+        
         # Serve icons
         if self.path in ['/icon-192.png', '/icon-512.png']:
             size = 192 if '192' in self.path else 512
@@ -133,6 +205,8 @@ self.addEventListener('fetch', (event) => {
                     "method": "POST",
                     "enctype": "multipart/form-data",
                     "params": {
+                        "title": "title",
+                        "text": "text",
                         "files": [
                             {
                                 "name": "file",
@@ -207,7 +281,7 @@ self.addEventListener('fetch', (event) => {
             margin-bottom: 20px;
         }
         .upload-area:hover { background: #f0f2ff; transform: translateY(-2px); }
-        .upload-area.drag-over { background: #e8ebff; border-color: #764ba2; }
+        .upload-area.drag-over, .upload-area.dragover { background: #e8ebff; border-color: #764ba2; transform: scale(1.02); }
         .upload-icon { font-size: 48px; margin-bottom: 15px; }
         .upload-text { color: #667eea; font-size: 16px; font-weight: 500; }
         .upload-hint { color: #999; font-size: 12px; margin-top: 8px; }
@@ -244,12 +318,11 @@ self.addEventListener('fetch', (event) => {
         .status.error { background: #f8d7da; color: #721c24; display: block; }
         .status.processing { background: #d1ecf1; color: #0c5460; display: block; }
         .file-info {
-            margin-top: 15px;
-            padding: 10px;
-            background: #f8f9ff;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #667eea;
+            margin: 15px 0;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 10px;
+            color: #2e7d32;
             display: none;
         }
         .loader {
@@ -326,22 +399,22 @@ self.addEventListener('fetch', (event) => {
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
         
-        // Hide install button if already installed
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-            installBtn.style.display = 'none';
-        }
+        // Hide install button by default
+        installBtn.style.display = 'none';
         
-        // Capture beforeinstallprompt event
+        // Capture beforeinstallprompt event - only then show the button
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            installBtn.style.display = 'block';
+            // Only show button if NOT in standalone mode
+            if (!window.matchMedia('(display-mode: standalone)').matches && !window.navigator.standalone) {
+                installBtn.style.display = 'block';
+            }
         });
         
         // Handle install button click
         installBtn.addEventListener('click', async () => {
             if (!deferredPrompt) {
-                alert('App is already installed or cannot be installed.\n\nRequirements:\n- HTTPS connection\n- Chrome/Edge browser');
                 return;
             }
             
@@ -372,6 +445,13 @@ self.addEventListener('fetch', (event) => {
         const submitBtn = document.getElementById('submitBtn');
         const status = document.getElementById('status');
 
+        // Check if shared from external app
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('shared') === 'true') {
+            // File was shared, show message
+            console.log('File shared from external app');
+        }
+
         uploadArea.addEventListener('click', () => fileInput.click());
 
         uploadArea.addEventListener('dragover', (e) => {
@@ -386,9 +466,21 @@ self.addEventListener('fetch', (event) => {
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadArea.classList.remove('drag-over');
-            if (e.dataTransfer.files.length) {
-                fileInput.files = e.dataTransfer.files;
-                showFileInfo(e.dataTransfer.files[0]);
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (!file.name.endsWith('.zip')) {
+                    alert('Please upload a ZIP file');
+                    return;
+                }
+                
+                // Create a new DataTransfer to programmatically set files
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                fileInput.files = dt.files;
+                
+                showFileInfo(file);
             }
         });
 
@@ -399,8 +491,9 @@ self.addEventListener('fetch', (event) => {
         });
 
         function showFileInfo(file) {
+            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+            fileInfo.textContent = `✅ ${file.name} (${sizeMB} MB)`;
             fileInfo.style.display = 'block';
-            fileInfo.textContent = `✅ Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
         }
 
         function showStatus(message, type) {
@@ -450,8 +543,13 @@ self.addEventListener('fetch', (event) => {
                         document.body.removeChild(a);
                         
                         showStatus('✅ PDF generated and downloaded successfully!', 'success');
-                        fileInfo.style.display = 'none';
-                        fileInput.value = '';
+                        
+                        // Reset form
+                        setTimeout(() => {
+                            form.reset();
+                            fileInfo.style.display = 'none';
+                            status.style.display = 'none';
+                        }, 3000);
                     } else {
                         const result = await response.json();
                         if (result.success) {
@@ -513,39 +611,15 @@ self.addEventListener('fetch', (event) => {
                 with open(filepath, 'wb') as f:
                     f.write(fileitem.file.read())
 
-                # Process file
-                output_pdf = filename.replace('.zip', '_transcript.pdf')
-                output_path = os.path.join(os.getcwd(), output_pdf)
-                cmd = [sys.executable, 'main.py', filepath, '-o', output_path]
+                print(f"📱 File shared from WhatsApp: {filepath}")
+                
+                # Get language if specified
+                language = form.getvalue('language', '')
+                
+                # Show processing page
+                self.send_processing_page(filename, language)
+                return
 
-                print(f"Running: {' '.join(cmd)}")
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-
-                if result.returncode == 0 and os.path.exists(output_path):
-                    # Return PDF directly
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/pdf')
-                    self.send_header('Content-Disposition', f'attachment; filename="{output_pdf}"')
-                    self.send_header('Content-Length', str(os.path.getsize(output_path)))
-                    self.end_headers()
-                    
-                    with open(output_path, 'rb') as f:
-                        self.wfile.write(f.read())
-                    
-                    # Clean up
-                    os.remove(output_path)
-                else:
-                    error_msg = result.stderr if result.stderr else 'Unknown error'
-                    self.send_json_response({
-                        'success': False,
-                        'error': f'Processing failed: {error_msg}'
-                    })
-
-            except subprocess.TimeoutExpired:
-                self.send_json_response({
-                    'success': False,
-                    'error': 'Processing timeout (>10 minutes)'
-                })
             except Exception as e:
                 print(f"Error: {e}")
                 import traceback
@@ -554,10 +628,6 @@ self.addEventListener('fetch', (event) => {
                     'success': False,
                     'error': str(e)
                 })
-            finally:
-                # Clean up uploaded file
-                if 'filepath' in locals() and os.path.exists(filepath):
-                    os.remove(filepath)
             return
         
         # Handle normal upload
@@ -647,6 +717,182 @@ self.addEventListener('fetch', (event) => {
                 # Clean up uploaded file
                 if 'filepath' in locals() and os.path.exists(filepath):
                     os.remove(filepath)
+
+    def send_processing_page(self, filename, language):
+        """Send processing page that handles conversion and download"""
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        
+        # URL encode filename for API call
+        from urllib.parse import quote
+        filename_encoded = quote(filename)
+        lang_param = f"&language={language}" if language else ""
+        
+        html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing...</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }}
+        .container {{
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }}
+        h1 {{
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }}
+        .spinner {{
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        .status {{
+            color: #666;
+            margin: 20px 0;
+            font-size: 16px;
+        }}
+        .filename {{
+            color: #333;
+            font-weight: 600;
+            margin: 10px 0;
+            word-break: break-word;
+        }}
+        .success {{
+            display: none;
+            color: #4caf50;
+            font-size: 48px;
+            margin: 20px 0;
+        }}
+        .error {{
+            display: none;
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }}
+        .back-btn {{
+            display: none;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Processing Your Chat</h1>
+        
+        <div id="processing">
+            <div class="spinner"></div>
+            <div class="filename">{filename}</div>
+            <div class="status" id="status">Converting to PDF...</div>
+            <p style="font-size: 12px; color: #999; margin-top: 20px;">
+                This may take a few minutes depending on file size
+            </p>
+        </div>
+        
+        <div class="success" id="success">✅</div>
+        
+        <div class="error" id="error"></div>
+        
+        <a href="/" class="back-btn" id="backBtn">← Back to Upload</a>
+    </div>
+
+    <script>
+        async function processFile() {{
+            try {{
+                const response = await fetch('/process?filename={filename_encoded}{lang_param}');
+                
+                if (!response.ok) {{
+                    throw new Error('Processing failed');
+                }}
+                
+                const contentType = response.headers.get('content-type');
+                
+                if (contentType && contentType.includes('application/pdf')) {{
+                    // Success - download PDF
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '{filename}'.replace('.zip', '_transcript.pdf');
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    // Show success
+                    document.getElementById('processing').style.display = 'none';
+                    document.getElementById('success').style.display = 'block';
+                    document.getElementById('status').textContent = 'PDF downloaded successfully!';
+                    document.getElementById('status').style.color = '#4caf50';
+                    document.getElementById('backBtn').style.display = 'inline-block';
+                    
+                    // Auto-redirect after 3 seconds
+                    setTimeout(() => {{
+                        window.location.href = '/';
+                    }}, 3000);
+                }} else {{
+                    const data = await response.json();
+                    throw new Error(data.error || 'Unknown error');
+                }}
+            }} catch (error) {{
+                console.error('Error:', error);
+                document.getElementById('processing').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').innerHTML = `
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <h2>Error</h2>
+                    <p style="margin: 10px 0;">${{error.message}}</p>
+                `;
+                document.getElementById('backBtn').style.display = 'inline-block';
+            }}
+        }}
+        
+        // Start processing
+        processFile();
+    </script>
+</body>
+</html>
+        """
+        
+        self.wfile.write(html.encode('utf-8'))
 
     def send_json_response(self, data):
         """Send JSON response"""
