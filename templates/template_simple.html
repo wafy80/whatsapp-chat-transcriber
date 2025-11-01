@@ -128,7 +128,7 @@
             <div class="message-text">{{this.text}}</div>
             {{#if this.transcription}}
             <div class="transcription">
-                🎙️ Audio transcription: {{this.transcription}}
+                {{label_audio_transcription}}: {{this.transcription}}
             </div>
             {{/if}}
             {{#if this.media}}
@@ -136,7 +136,7 @@
                 {{#if this.media.is_image}}
                 <img src="{{this.media.path}}" alt="{{this.media.filename}}">
                 {{else}}
-                <div class="media-file">📎 {{this.media.filename}}</div>
+                <div class="media-file">{{this.media.filename}}</div>
                 {{/if}}
             </div>
             {{/if}}

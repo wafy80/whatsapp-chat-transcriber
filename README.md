@@ -71,6 +71,96 @@ python3 main.py --batch
 ./check_setup.sh
 ```
 
+## 📱 Getting the Chat ZIP from WhatsApp
+
+WhatsApp exports are created on your phone. Here are the easiest ways to transfer them to your computer:
+
+### Method 1: Direct Upload via Web Interface ⭐ EASIEST!
+
+**No file transfer needed!** Upload directly from your phone:
+
+#### Option A: Same WiFi (Local Network)
+
+```bash
+# Start the web server on your computer
+python3 web_upload.py
+```
+
+Then on your phone:
+1. Connect to the **same WiFi** as your computer
+2. Open browser → go to URL shown (e.g., `http://192.168.1.100:8080`)
+3. Upload WhatsApp ZIP file
+4. Download generated PDF!
+
+#### Option B: HTTPS Tunnel (PWA Share) 🚀 RECOMMENDED!
+
+**Enable direct sharing from WhatsApp!**
+
+```bash
+# Install pyngrok if needed
+pip install pyngrok
+
+# Start with HTTPS tunnel
+python3 web_upload.py --https
+```
+
+**Setup (one time only):**
+1. Open the **HTTPS URL** shown on your phone (e.g., `https://xxxx.ngrok-free.app`)
+2. Tap **"Install app"** or **"Add to Home Screen"**
+3. The "Chat2PDF" app will be installed on your phone
+
+**Every time you export a chat:**
+1. WhatsApp → Open chat → ⋮ → **More** → **Export chat**
+2. Choose "**Include Media**"
+3. Tap **"Share"** button
+4. Select **"Chat2PDF"** from the share menu! 📱
+5. File uploads automatically → Download PDF when ready!
+
+**Requirements:**
+- ✅ **Android + Chrome/Edge** (iOS Safari doesn't support Share Target API)
+- ✅ **Free ngrok account**: [Sign up here](https://ngrok.com) → Get auth token → Run `ngrok config add-authtoken YOUR_TOKEN`
+
+**Features:**
+- 📱 Mobile-friendly interface
+- 🎨 Drag & drop upload
+- 🌍 Language selection
+- ⚡ Auto processing
+- 📥 Direct PDF download
+- 🔗 **PWA Share Target** (share directly from WhatsApp!)
+
+---
+
+### Method 2: Cloud Storage
+1. Export chat on WhatsApp → Choose "**Include Media**"
+2. Save to **Google Drive**, **iCloud**, **Dropbox**, etc.
+3. Download on your computer from the cloud service
+
+### Method 3: Email
+1. Export chat on WhatsApp
+2. Choose "**Email**" as share method
+3. Open email on computer and download attachment
+4. ⚠️ **Limit**: Email attachments usually max at 25 MB
+
+### Method 4: USB Cable
+1. Export chat on WhatsApp → Save to phone storage
+2. Connect phone to computer via USB cable
+3. Copy ZIP file from phone's WhatsApp folder:
+   - **Android**: `/Internal Storage/WhatsApp/`
+   - **iOS**: Use iTunes File Sharing or Finder
+
+### Method 5: Messaging Apps
+1. Export chat on WhatsApp
+2. Share via **Telegram** (send to "Saved Messages"), **Signal**, etc.
+3. Download from desktop app
+
+### Method 6: Local Network Transfer
+Use apps like:
+- **SendAnywhere** (no account needed)
+- **LocalSend** (open source, no internet needed)
+- **Snapdrop** (web-based, same network)
+
+**💡 Tip**: For large chats with media, cloud storage or local network transfer are fastest!
+
 ## 📋 Requirements
 
 - Python 3.8+
