@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Simple web server to receive WhatsApp chat ZIP files directly from phone
-and process them automatically.
+Simple web server to upload and process WhatsApp chat ZIP files.
 """
 
 import os
 import socket
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, urlparse
 import cgi
 import subprocess
 import sys
@@ -15,79 +14,7 @@ import argparse
 
 class UploadHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        """Serve the upload form or download PDF"""
-        # Handle processing endpoint
-        if self.path.startswith('/process?'):
-            from urllib.parse import parse_qs, urlparse
-            
-            query = urlparse(self.path).query
-            params = parse_qs(query)
-            
-            filename = params.get('filename', [''])[0]
-            language = params.get('language', [''])[0]
-            
-            if not filename:
-                self.send_json_response({'success': False, 'error': 'No filename provided'})
-                return
-            
-            filepath = os.path.join('uploads', filename)
-            
-            if not os.path.exists(filepath):
-                self.send_json_response({'success': False, 'error': 'File not found'})
-                return
-            
-            # Process the file
-            try:
-                output_pdf = filename.replace('.zip', '_transcript.pdf')
-                output_path = os.path.join(os.getcwd(), output_pdf)
-                cmd = [sys.executable, 'main.py', filepath, '-o', output_path]
-                
-                if language:
-                    cmd.extend(['-l', language])
-                
-                print(f"Running: {' '.join(cmd)}")
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-                print(f"Return code: {result.returncode}")
-                print(f"Output file exists: {os.path.exists(output_path)}")
-                
-                if result.returncode == 0 and os.path.exists(output_path):
-                    # Return PDF directly
-                    self.send_response(200)
-                    self.send_header('Content-type', 'application/pdf')
-                    self.send_header('Content-Disposition', f'attachment; filename="{output_pdf}"')
-                    self.send_header('Content-Length', str(os.path.getsize(output_path)))
-                    self.end_headers()
-                    
-                    with open(output_path, 'rb') as f:
-                        self.wfile.write(f.read())
-                    
-                    # Clean up
-                    os.remove(output_path)
-                    return
-                else:
-                    error_msg = result.stderr if result.stderr else 'Unknown error'
-                    self.send_json_response({
-                        'success': False,
-                        'error': f'Processing failed: {error_msg}'
-                    })
-            
-            except subprocess.TimeoutExpired:
-                self.send_json_response({
-                    'success': False,
-                    'error': 'Processing timeout (>10 minutes)'
-                })
-            except Exception as e:
-                self.send_json_response({
-                    'success': False,
-                    'error': str(e)
-                })
-            finally:
-                # Clean up uploaded file
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-            
-            return
-        
+        """Serve the upload form, PWA assets, or download PDF"""
         # Serve icons
         if self.path in ['/icon-192.png', '/icon-512.png']:
             size = 192 if '192' in self.path else 512
@@ -97,7 +24,7 @@ class UploadHandler(BaseHTTPRequestHandler):
             self.end_headers()
             
             try:
-                from PIL import Image, ImageDraw, ImageFont
+                from PIL import Image, ImageDraw
                 import io
                 
                 # Create simple icon with gradient
@@ -127,7 +54,6 @@ class UploadHandler(BaseHTTPRequestHandler):
             except ImportError:
                 # Fallback: simple solid color PNG if PIL not available
                 import base64
-                # Minimal 1x1 purple PNG
                 png_data = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
                 self.wfile.write(png_data)
             return
@@ -152,7 +78,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Cache-first strategy for static assets
     event.respondWith(
         caches.match(event.request).then(response => {
             return response || fetch(event.request);
@@ -174,7 +99,7 @@ self.addEventListener('fetch', (event) => {
                 "name": "WhatsApp Chat to PDF Converter",
                 "short_name": "Chat2PDF",
                 "description": "Convert WhatsApp chats to PDF with audio transcription",
-                "start_url": "/?source=pwa",
+                "start_url": "/",
                 "scope": "/",
                 "display": "standalone",
                 "display_override": ["standalone", "fullscreen"],
@@ -208,8 +133,6 @@ self.addEventListener('fetch', (event) => {
                     "method": "POST",
                     "enctype": "multipart/form-data",
                     "params": {
-                        "title": "title",
-                        "text": "text",
                         "files": [
                             {
                                 "name": "file",
@@ -223,45 +146,12 @@ self.addEventListener('fetch', (event) => {
             self.wfile.write(json.dumps(manifest, indent=2).encode('utf-8'))
             return
         
-        # Check if this is a download request
-        if self.path.startswith('/download/'):
-            # Decode URL-encoded filename
-            filename = unquote(self.path.replace('/download/', ''))
-            filepath = os.path.join(os.getcwd(), filename)
+        if self.path == '/' or self.path == '/index.html':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
             
-            print(f"Download request for: {filename}")
-            print(f"Looking for file at: {filepath}")
-            print(f"File exists: {os.path.exists(filepath)}")
-            
-            if os.path.exists(filepath):
-                self.send_response(200)
-                self.send_header('Content-type', 'application/pdf')
-                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
-                self.send_header('Content-Length', str(os.path.getsize(filepath)))
-                self.end_headers()
-                
-                with open(filepath, 'rb') as f:
-                    self.wfile.write(f.read())
-                
-                # Clean up PDF after download
-                try:
-                    os.remove(filepath)
-                    print(f"Cleaned up: {filepath}")
-                except Exception as e:
-                    print(f"Could not remove {filepath}: {e}")
-                return
-            else:
-                print(f"File not found: {filepath}")
-                self.send_error(404, f"File not found: {filename}")
-                return
-        
-        # Serve the upload form
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
-        self.end_headers()
-        
-        html = """
-<!DOCTYPE html>
+            html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -278,149 +168,101 @@ self.addEventListener('fetch', (event) => {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             padding: 20px;
         }
         .container {
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             max-width: 500px;
             width: 100%;
         }
         h1 {
-            color: #333;
+            color: #667eea;
             margin-bottom: 10px;
-            font-size: 28px;
+            font-size: 24px;
+            text-align: center;
         }
         .subtitle {
             color: #666;
-            margin-bottom: 30px;
             font-size: 14px;
+            margin-bottom: 30px;
+            text-align: center;
         }
         .upload-area {
-            border: 3px dashed #ddd;
+            border: 3px dashed #667eea;
             border-radius: 15px;
-            padding: 40px;
+            padding: 40px 20px;
             text-align: center;
-            background: #f9f9f9;
-            transition: all 0.3s;
             cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
             margin-bottom: 20px;
         }
-        .upload-area:hover {
-            border-color: #667eea;
-            background: #f0f0ff;
-        }
-        .upload-area.dragover {
-            border-color: #667eea;
-            background: #e8e8ff;
-            transform: scale(1.02);
-        }
-        .upload-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-        input[type="file"] {
-            display: none;
-        }
-        .file-info {
-            margin: 15px 0;
-            padding: 15px;
-            background: #e8f5e9;
-            border-radius: 10px;
-            color: #2e7d32;
-            display: none;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        select {
+        .upload-area:hover { background: #f0f2ff; transform: translateY(-2px); }
+        .upload-area.drag-over { background: #e8ebff; border-color: #764ba2; }
+        .upload-icon { font-size: 48px; margin-bottom: 15px; }
+        .upload-text { color: #667eea; font-size: 16px; font-weight: 500; }
+        .upload-hint { color: #999; font-size: 12px; margin-top: 8px; }
+        input[type="file"] { display: none; }
+        select, button {
             width: 100%;
             padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            font-size: 16px;
-            margin-bottom: 20px;
-            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
         }
+        select:focus { outline: none; border-color: #667eea; }
         button {
-            width: 100%;
-            padding: 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            font-size: 16px;
         }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
-        }
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .progress {
-            display: none;
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .status {
             margin-top: 20px;
-            text-align: center;
-        }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .result {
-            display: none;
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        .result.success {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-        .result.error {
-            background: #ffebee;
-            color: #c62828;
-        }
-        .download-link {
-            display: inline-block;
-            margin-top: 15px;
-            padding: 12px 30px;
-            background: #4caf50;
-            color: white;
-            text-decoration: none;
+            padding: 15px;
             border-radius: 8px;
-            font-weight: 600;
+            display: none;
+            text-align: center;
+            font-size: 14px;
         }
-        .download-link:hover {
-            background: #45a049;
+        .status.success { background: #d4edda; color: #155724; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; display: block; }
+        .status.processing { background: #d1ecf1; color: #0c5460; display: block; }
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #667eea;
+            display: none;
         }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .install-btn {
             display: none;
             margin-bottom: 20px;
@@ -437,56 +279,46 @@ self.addEventListener('fetch', (event) => {
         .install-btn:hover {
             background: #20bd5a;
         }
-        .install-btn.show {
-            display: block;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📱 WhatsApp to PDF</h1>
-        <p class="subtitle">Upload your WhatsApp chat export and get a beautiful PDF</p>
+        <h1>📱 WhatsApp Chat to PDF</h1>
+        <p class="subtitle">Convert your WhatsApp chats to PDF with audio transcription</p>
         
         <button id="installBtn" class="install-btn">
             ⬇️ Install App (Enable WhatsApp Share)
         </button>
         
-        <form id="uploadForm" enctype="multipart/form-data" method="POST">
+        <form id="uploadForm">
             <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">📤</div>
-                <p><strong>Click to select</strong> or drag and drop</p>
-                <p style="font-size: 12px; color: #999; margin-top: 5px;">WhatsApp chat ZIP file</p>
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Click or drag ZIP file here</div>
+                <div class="upload-hint">WhatsApp exported chat (.zip)</div>
                 <input type="file" id="fileInput" name="file" accept=".zip" required>
             </div>
             
             <div class="file-info" id="fileInfo"></div>
             
-            <label for="language">Transcription Language (optional)</label>
-            <select name="language" id="language">
-                <option value="">Auto-detect</option>
-                <option value="en">🇬🇧 English</option>
-                <option value="es">🇪🇸 Spanish</option>
-                <option value="fr">🇫🇷 French</option>
-                <option value="de">🇩🇪 German</option>
-                <option value="it">🇮🇹 Italian</option>
-                <option value="pt">🇵🇹 Portuguese</option>
-                <option value="ja">🇯🇵 Japanese</option>
-                <option value="zh">🇨🇳 Chinese</option>
-                <option value="ru">🇷🇺 Russian</option>
-                <option value="nl">🇳🇱 Dutch</option>
-                <option value="ko">🇰🇷 Korean</option>
+            <select id="language" name="language">
+                <option value="">Auto-detect language</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="it">Italiano</option>
+                <option value="pt">Português</option>
+                <option value="ja">日本語</option>
+                <option value="zh">中文</option>
+                <option value="ru">Русский</option>
+                <option value="nl">Nederlands</option>
+                <option value="ko">한국어</option>
             </select>
             
             <button type="submit" id="submitBtn">Convert to PDF</button>
         </form>
         
-        <div class="progress" id="progress">
-            <div class="spinner"></div>
-            <p>Processing your chat...</p>
-            <p style="font-size: 12px; color: #666; margin-top: 10px;">This may take a few minutes</p>
-        </div>
-        
-        <div class="result" id="result"></div>
+        <div class="status" id="status"></div>
     </div>
 
     <script>
@@ -494,65 +326,43 @@ self.addEventListener('fetch', (event) => {
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
         
-        // Check if running as installed PWA
+        // Hide install button if already installed
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-            console.log('✅ Running as installed PWA');
             installBtn.style.display = 'none';
         }
         
-        // Capture the beforeinstallprompt event
+        // Capture beforeinstallprompt event
         window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('✅ beforeinstallprompt fired - PWA is installable');
             e.preventDefault();
             deferredPrompt = e;
-            installBtn.classList.add('show');
+            installBtn.style.display = 'block';
         });
         
         // Handle install button click
         installBtn.addEventListener('click', async () => {
             if (!deferredPrompt) {
-                console.log('❌ No deferred prompt');
-                alert('App is already installed or cannot be installed on this device/browser.\n\nTry:\n1. Chrome/Edge on Android\n2. Open via HTTPS\n3. Clear browser data and reload');
+                alert('App is already installed or cannot be installed.\n\nRequirements:\n- HTTPS connection\n- Chrome/Edge browser');
                 return;
             }
             
-            console.log('📱 Showing install prompt');
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response: ${outcome}`);
             
             if (outcome === 'accepted') {
-                console.log('✅ User accepted installation');
                 installBtn.textContent = '✅ App Installed!';
                 setTimeout(() => {
-                    installBtn.classList.remove('show');
-                }, 3000);
-            } else {
-                console.log('❌ User dismissed installation');
+                    installBtn.style.display = 'none';
+                }, 2000);
             }
             
             deferredPrompt = null;
         });
         
-        // Check if already installed
-        window.addEventListener('appinstalled', () => {
-            console.log('✅ PWA was installed successfully');
-            installBtn.classList.remove('show');
-        });
-        
-        // Register Service Worker for PWA
+        // Register Service Worker
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => {
-                        console.log('✅ Service Worker registered:', reg.scope);
-                    })
-                    .catch(err => {
-                        console.error('❌ Service Worker registration failed:', err);
-                    });
-            });
-        } else {
-            console.warn('⚠️ Service Worker not supported');
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.error('SW registration failed:', err));
         }
 
         const uploadArea = document.getElementById('uploadArea');
@@ -560,486 +370,294 @@ self.addEventListener('fetch', (event) => {
         const fileInfo = document.getElementById('fileInfo');
         const form = document.getElementById('uploadForm');
         const submitBtn = document.getElementById('submitBtn');
-        const progress = document.getElementById('progress');
-        const result = document.getElementById('result');
-
-        // Check if shared from external app
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('shared') === 'true') {
-            // File was shared, show message
-            console.log('File shared from external app');
-        }
+        const status = document.getElementById('status');
 
         uploadArea.addEventListener('click', () => fileInput.click());
-        
+
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
-            uploadArea.classList.add('dragover');
+            uploadArea.classList.add('drag-over');
         });
-        
+
         uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
+            uploadArea.classList.remove('drag-over');
         });
-        
+
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
-            uploadArea.classList.remove('dragover');
+            uploadArea.classList.remove('drag-over');
             if (e.dataTransfer.files.length) {
-                const file = e.dataTransfer.files[0];
-                if (!file.name.endsWith('.zip')) {
-                    alert('Please upload a ZIP file');
-                    return;
-                }
-                // Create a new FileList-like object
-                try {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    fileInput.files = dt.files;
-                    showFileInfo(file);
-                } catch (error) {
-                    console.error('DataTransfer error:', error);
-                    // Fallback: store file reference and handle in submit
-                    uploadArea.droppedFile = file;
-                    showFileInfo(file);
-                }
+                fileInput.files = e.dataTransfer.files;
+                showFileInfo(e.dataTransfer.files[0]);
             }
         });
-        
+
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
                 showFileInfo(e.target.files[0]);
             }
         });
-        
+
         function showFileInfo(file) {
-            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-            fileInfo.textContent = `✅ ${file.name} (${sizeMB} MB)`;
             fileInfo.style.display = 'block';
+            fileInfo.textContent = `✅ Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
         }
-        
+
+        function showStatus(message, type) {
+            status.className = 'status ' + type;
+            status.innerHTML = message;
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Check if we have a file from drag & drop fallback
-            if (!fileInput.files.length && !uploadArea.droppedFile) {
-                alert('Please select a file first');
+            const file = fileInput.files[0];
+            if (!file) {
+                showStatus('Please select a file', 'error');
                 return;
             }
-            
-            const formData = new FormData();
-            
-            // Add file (from input or dropped)
-            if (fileInput.files.length) {
-                formData.append('file', fileInput.files[0]);
-            } else if (uploadArea.droppedFile) {
-                formData.append('file', uploadArea.droppedFile);
+
+            if (!file.name.endsWith('.zip')) {
+                showStatus('Please select a ZIP file', 'error');
+                return;
             }
-            
-            // Add language
-            const language = document.getElementById('language').value;
-            if (language) {
-                formData.append('language', language);
-            }
-            
+
             submitBtn.disabled = true;
-            progress.style.display = 'block';
-            result.style.display = 'none';
-            
+            showStatus('<span class="loader"></span>Uploading and processing... This may take several minutes', 'processing');
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('language', document.getElementById('language').value);
+
             try {
-                const response = await fetch('/', {
+                const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
-                
-                progress.style.display = 'none';
-                
-                // Check if response is PDF or JSON error
-                const contentType = response.headers.get('content-type');
-                
-                if (contentType && contentType.includes('application/pdf')) {
-                    // Success - download PDF
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    const fileName = fileInput.files.length ? fileInput.files[0].name : uploadArea.droppedFile.name;
-                    a.download = fileName.replace('.zip', '_transcript.pdf');
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    result.style.display = 'block';
-                    result.className = 'result success';
-                    result.innerHTML = `
-                        <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
-                        <h2>Success!</h2>
-                        <p style="margin: 10px 0;">Your PDF has been downloaded</p>
-                    `;
-                    
-                    // Reset form
-                    setTimeout(() => {
-                        form.reset();
-                        fileInfo.style.display = 'none';
-                        result.style.display = 'none';
-                        uploadArea.droppedFile = null;
-                    }, 3000);
-                } else if (contentType && contentType.includes('application/json')) {
-                    // JSON response (with download link or error)
-                    const data = await response.json();
-                    
-                    if (data.success && data.filename) {
-                        // Auto-download the PDF
-                        const downloadUrl = '/download/' + encodeURIComponent(data.filename);
-                        const downloadResponse = await fetch(downloadUrl);
-                        const blob = await downloadResponse.blob();
+
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/pdf')) {
+                        // PDF returned directly - download it
+                        const blob = await response.blob();
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = data.filename;
+                        a.download = file.name.replace('.zip', '_transcript.pdf');
                         document.body.appendChild(a);
                         a.click();
                         window.URL.revokeObjectURL(url);
                         document.body.removeChild(a);
                         
-                        result.style.display = 'block';
-                        result.className = 'result success';
-                        result.innerHTML = `
-                            <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
-                            <h2>Success!</h2>
-                            <p style="margin: 10px 0;">Your PDF has been downloaded</p>
-                        `;
-                        
-                        // Reset form
-                        setTimeout(() => {
-                            form.reset();
-                            fileInfo.style.display = 'none';
-                            result.style.display = 'none';
-                            uploadArea.droppedFile = null;
-                        }, 3000);
+                        showStatus('✅ PDF generated and downloaded successfully!', 'success');
+                        fileInfo.style.display = 'none';
+                        fileInput.value = '';
                     } else {
-                        // Error response
-                        result.style.display = 'block';
-                        result.className = 'result error';
-                        result.innerHTML = `
-                            <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                            <h2>Error</h2>
-                            <p style="margin: 10px 0;">${data.error || 'Unknown error'}</p>
-                        `;
+                        const result = await response.json();
+                        if (result.success) {
+                            showStatus('✅ ' + result.message, 'success');
+                        } else {
+                            showStatus('❌ Error: ' + result.error, 'error');
+                        }
                     }
                 } else {
-                    // Unknown response type
-                    result.style.display = 'block';
-                    result.className = 'result error';
-                    result.innerHTML = `
-                        <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                        <h2>Error</h2>
-                        <p style="margin: 10px 0;">Unexpected response format</p>
-                    `;
+                    showStatus('❌ Server error: ' + response.statusText, 'error');
                 }
             } catch (error) {
-                progress.style.display = 'none';
-                result.style.display = 'block';
-                result.className = 'result error';
-                result.innerHTML = `
-                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                    <h2>Error</h2>
-                    <p style="margin: 10px 0;">${error.message}</p>
-                `;
+                showStatus('❌ Error: ' + error.message, 'error');
             } finally {
                 submitBtn.disabled = false;
             }
         });
     </script>
 </body>
-</html>
-        """
-        
-        self.wfile.write(html.encode('utf-8'))
-    
+</html>"""
+            self.wfile.write(html.encode('utf-8'))
+            return
+
     def do_POST(self):
         """Handle file upload"""
-        content_type = self.headers['Content-Type']
-        
-        # Check if content type is available
-        if not content_type or 'multipart/form-data' not in content_type:
-            self.send_error(400, "Invalid content type")
-            return
-        
-        # Check if this is from WhatsApp share
-        is_share = self.path == '/share'
-        if is_share:
-            print("📱 Received share from WhatsApp!")
-        
-        # Parse multipart form data
-        form = cgi.FieldStorage(
-            fp=self.rfile,
-            headers=self.headers,
-            environ={'REQUEST_METHOD': 'POST'}
-        )
-        
-        if 'file' not in form:
-            self.send_json_response({'success': False, 'error': 'No file uploaded'})
-            return
-        
-        file_item = form['file']
-        if not file_item.filename:
-            self.send_json_response({'success': False, 'error': 'No file selected'})
-            return
-        
-        # Get language if specified
-        language = form.getvalue('language', '')
-        
-        # Save uploaded file
-        filename = os.path.basename(file_item.filename)
-        filepath = os.path.join('uploads', filename)
-        
-        os.makedirs('uploads', exist_ok=True)
-        
-        with open(filepath, 'wb') as f:
-            f.write(file_item.file.read())
-        
-        # If this is from WhatsApp share, show processing page
-        if is_share:
-            self.send_processing_page(filename, language, filepath)
-            return
-        
-        # Process the file immediately for normal uploads
-        try:
-            output_pdf = filename.replace('.zip', '_transcript.pdf')
-            output_path = os.path.join(os.getcwd(), output_pdf)
-            cmd = [sys.executable, 'main.py', filepath, '-o', output_path]
-            
-            if language:
-                cmd.extend(['-l', language])
-            
-            print(f"Running: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-            print(f"Return code: {result.returncode}")
-            print(f"Output file exists: {os.path.exists(output_path)}")
-            
-            if result.returncode == 0 and os.path.exists(output_path):
-                # Return PDF directly
-                self.send_response(200)
-                self.send_header('Content-type', 'application/pdf')
-                self.send_header('Content-Disposition', f'attachment; filename="{output_pdf}"')
-                self.send_header('Content-Length', str(os.path.getsize(output_path)))
-                self.end_headers()
+        # Handle WhatsApp share
+        if self.path == '/share':
+            try:
+                # Parse multipart form data
+                content_type = self.headers['Content-Type']
+                if 'multipart/form-data' not in content_type:
+                    self.send_json_response({'success': False, 'error': 'Invalid content type'})
+                    return
+
+                # Create uploads directory
+                os.makedirs('uploads', exist_ok=True)
+
+                # Parse form data
+                form = cgi.FieldStorage(
+                    fp=self.rfile,
+                    headers=self.headers,
+                    environ={'REQUEST_METHOD': 'POST'}
+                )
+
+                # Get file
+                if 'file' not in form:
+                    self.send_json_response({'success': False, 'error': 'No file uploaded'})
+                    return
+
+                fileitem = form['file']
+                if not fileitem.filename:
+                    self.send_json_response({'success': False, 'error': 'No file selected'})
+                    return
+
+                # Save file
+                filename = os.path.basename(fileitem.filename)
+                filepath = os.path.join('uploads', filename)
                 
-                with open(output_path, 'rb') as f:
-                    self.wfile.write(f.read())
-                
-                # Clean up
-                os.remove(output_path)
-                return
-            else:
-                error_msg = result.stderr if result.stderr else 'Unknown error'
+                with open(filepath, 'wb') as f:
+                    f.write(fileitem.file.read())
+
+                # Process file
+                output_pdf = filename.replace('.zip', '_transcript.pdf')
+                output_path = os.path.join(os.getcwd(), output_pdf)
+                cmd = [sys.executable, 'main.py', filepath, '-o', output_path]
+
+                print(f"Running: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+                if result.returncode == 0 and os.path.exists(output_path):
+                    # Return PDF directly
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/pdf')
+                    self.send_header('Content-Disposition', f'attachment; filename="{output_pdf}"')
+                    self.send_header('Content-Length', str(os.path.getsize(output_path)))
+                    self.end_headers()
+                    
+                    with open(output_path, 'rb') as f:
+                        self.wfile.write(f.read())
+                    
+                    # Clean up
+                    os.remove(output_path)
+                else:
+                    error_msg = result.stderr if result.stderr else 'Unknown error'
+                    self.send_json_response({
+                        'success': False,
+                        'error': f'Processing failed: {error_msg}'
+                    })
+
+            except subprocess.TimeoutExpired:
                 self.send_json_response({
                     'success': False,
-                    'error': f'Processing failed: {error_msg}'
+                    'error': 'Processing timeout (>10 minutes)'
                 })
+            except Exception as e:
+                print(f"Error: {e}")
+                import traceback
+                traceback.print_exc()
+                self.send_json_response({
+                    'success': False,
+                    'error': str(e)
+                })
+            finally:
+                # Clean up uploaded file
+                if 'filepath' in locals() and os.path.exists(filepath):
+                    os.remove(filepath)
+            return
         
-        except subprocess.TimeoutExpired:
-            self.send_json_response({
-                'success': False,
-                'error': 'Processing timeout (>10 minutes)'
-            })
-        except Exception as e:
-            self.send_json_response({
-                'success': False,
-                'error': str(e)
-            })
-        finally:
-            # Clean up uploaded file
-            if os.path.exists(filepath):
-                os.remove(filepath)
-    
-    def send_processing_page(self, filename, language, filepath):
-        """Send processing page that handles conversion and download"""
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
-        self.end_headers()
-        
-        # URL encode filename for API call
-        from urllib.parse import quote
-        filename_encoded = quote(filename)
-        lang_param = f"&language={language}" if language else ""
-        
-        html = f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Processing...</title>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }}
-        .container {{
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 40px;
-            max-width: 500px;
-            width: 100%;
-            text-align: center;
-        }}
-        h1 {{
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }}
-        .spinner {{
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-            margin: 30px auto;
-        }}
-        @keyframes spin {{
-            0% {{ transform: rotate(0deg); }}
-            100% {{ transform: rotate(360deg); }}
-        }}
-        .status {{
-            color: #666;
-            margin: 20px 0;
-            font-size: 16px;
-        }}
-        .filename {{
-            color: #333;
-            font-weight: 600;
-            margin: 10px 0;
-            word-break: break-word;
-        }}
-        .success {{
-            display: none;
-            color: #4caf50;
-            font-size: 48px;
-            margin: 20px 0;
-        }}
-        .error {{
-            display: none;
-            background: #ffebee;
-            color: #c62828;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-        }}
-        .back-btn {{
-            display: none;
-            margin-top: 20px;
-            padding: 12px 24px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📱 Processing Your Chat</h1>
-        
-        <div id="processing">
-            <div class="spinner"></div>
-            <div class="filename">{filename}</div>
-            <div class="status" id="status">Converting to PDF...</div>
-            <p style="font-size: 12px; color: #999; margin-top: 20px;">
-                This may take a few minutes depending on file size
-            </p>
-        </div>
-        
-        <div class="success" id="success">✅</div>
-        
-        <div class="error" id="error"></div>
-        
-        <a href="/" class="back-btn" id="backBtn">← Back to Upload</a>
-    </div>
+        # Handle normal upload
+        if self.path == '/upload':
+            try:
+                # Parse multipart form data
+                content_type = self.headers['Content-Type']
+                if 'multipart/form-data' not in content_type:
+                    self.send_json_response({'success': False, 'error': 'Invalid content type'})
+                    return
 
-    <script>
-        async function processFile() {{
-            try {{
-                const response = await fetch('/process?filename={filename_encoded}{lang_param}');
+                # Create uploads directory
+                os.makedirs('uploads', exist_ok=True)
+
+                # Parse form data
+                form = cgi.FieldStorage(
+                    fp=self.rfile,
+                    headers=self.headers,
+                    environ={'REQUEST_METHOD': 'POST'}
+                )
+
+                # Get file
+                if 'file' not in form:
+                    self.send_json_response({'success': False, 'error': 'No file uploaded'})
+                    return
+
+                fileitem = form['file']
+                if not fileitem.filename:
+                    self.send_json_response({'success': False, 'error': 'No file selected'})
+                    return
+
+                # Save file
+                filename = os.path.basename(fileitem.filename)
+                filepath = os.path.join('uploads', filename)
                 
-                if (!response.ok) {{
-                    throw new Error('Processing failed');
-                }}
+                with open(filepath, 'wb') as f:
+                    f.write(fileitem.file.read())
+
+                # Get language
+                language = form.getvalue('language', '')
+
+                # Process file
+                output_pdf = filename.replace('.zip', '_transcript.pdf')
+                output_path = os.path.join(os.getcwd(), output_pdf)
+                cmd = [sys.executable, 'main.py', filepath, '-o', output_path]
                 
-                const contentType = response.headers.get('content-type');
-                
-                if (contentType && contentType.includes('application/pdf')) {{
-                    // Success - download PDF
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = '{filename}'.replace('.zip', '_transcript.pdf');
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
+                if language:
+                    cmd.extend(['-l', language])
+
+                print(f"Running: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+                if result.returncode == 0 and os.path.exists(output_path):
+                    # Return PDF directly
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/pdf')
+                    self.send_header('Content-Disposition', f'attachment; filename="{output_pdf}"')
+                    self.send_header('Content-Length', str(os.path.getsize(output_path)))
+                    self.end_headers()
                     
-                    // Show success
-                    document.getElementById('processing').style.display = 'none';
-                    document.getElementById('success').style.display = 'block';
-                    document.getElementById('status').textContent = 'PDF downloaded successfully!';
-                    document.getElementById('status').style.color = '#4caf50';
-                    document.getElementById('backBtn').style.display = 'inline-block';
+                    with open(output_path, 'rb') as f:
+                        self.wfile.write(f.read())
                     
-                    // Auto-redirect after 3 seconds
-                    setTimeout(() => {{
-                        window.location.href = '/';
-                    }}, 3000);
-                }} else {{
-                    const data = await response.json();
-                    throw new Error(data.error || 'Unknown error');
-                }}
-            }} catch (error) {{
-                console.error('Error:', error);
-                document.getElementById('processing').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('error').innerHTML = `
-                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
-                    <h2>Error</h2>
-                    <p style="margin: 10px 0;">${{error.message}}</p>
-                `;
-                document.getElementById('backBtn').style.display = 'inline-block';
-            }}
-        }}
-        
-        // Start processing
-        processFile();
-    </script>
-</body>
-</html>
-        """
-        
-        self.wfile.write(html.encode('utf-8'))
-    
+                    # Clean up
+                    os.remove(output_path)
+                else:
+                    error_msg = result.stderr if result.stderr else 'Unknown error'
+                    self.send_json_response({
+                        'success': False,
+                        'error': f'Processing failed: {error_msg}'
+                    })
+
+            except subprocess.TimeoutExpired:
+                self.send_json_response({
+                    'success': False,
+                    'error': 'Processing timeout (>10 minutes)'
+                })
+            except Exception as e:
+                print(f"Error: {e}")
+                import traceback
+                traceback.print_exc()
+                self.send_json_response({
+                    'success': False,
+                    'error': str(e)
+                })
+            finally:
+                # Clean up uploaded file
+                if 'filepath' in locals() and os.path.exists(filepath):
+                    os.remove(filepath)
+
     def send_json_response(self, data):
         """Send JSON response"""
         import json
-        self.send_response(200)
+        self.send_response(200 if data.get('success') else 400)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
-    
+
     def log_message(self, format, *args):
-        """Custom log format"""
+        """Custom logging"""
         print(f"[{self.address_string()}] {format % args}")
 
 
@@ -1056,76 +674,29 @@ def get_local_ip():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='WhatsApp Chat to PDF Web Server')
-    parser.add_argument('--https', action='store_true', 
-                       help='Enable HTTPS via ngrok tunnel (required for PWA share on Android)')
-    parser.add_argument('--port', type=int, default=8080,
-                       help='Local port (default: 8080)')
+    parser = argparse.ArgumentParser(description='WhatsApp Chat to PDF Web Upload Server')
+    parser.add_argument('--port', type=int, default=58080, help='Port to listen on (default: 58080)')
+    parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     args = parser.parse_args()
-    
-    port = args.port
+
+    server = HTTPServer((args.host, args.port), UploadHandler)
     local_ip = get_local_ip()
     
-    server = HTTPServer(('0.0.0.0', port), UploadHandler)
-    
-    print("\n" + "="*70)
-    print("📱 WhatsApp Chat to PDF - Web Upload Server")
-    print("="*70)
-    
-    # Start ngrok tunnel if requested
-    if args.https:
-        try:
-            from pyngrok import ngrok
-            
-            # Start ngrok tunnel
-            public_url = ngrok.connect(port, bind_tls=True)
-            https_url = public_url.public_url
-            
-            print(f"\n✅ HTTPS tunnel active!")
-            print(f"\n🌐 Public URL (share this with your phone):")
-            print(f"\n   {https_url}")
-            print(f"\n📱 STEPS TO USE PWA SHARE:")
-            print(f"\n   1. Open {https_url} on your phone")
-            print(f"   2. Tap 'Install app' or 'Add to Home Screen'")
-            print(f"   3. From WhatsApp → Export → Share")
-            print(f"   4. Select 'Chat2PDF' from share menu!")
-            print(f"\n⚠️  Tunnel will close when you stop the server")
-            
-        except ImportError:
-            print(f"\n❌ ERROR: pyngrok not installed!")
-            print(f"\n   Install with: pip install pyngrok")
-            print(f"\n   Then run: python3 web_upload.py --https")
-            return
-        except Exception as e:
-            print(f"\n❌ ERROR starting ngrok: {e}")
-            print(f"\n   Make sure ngrok is configured:")
-            print(f"\n   1. Sign up at https://ngrok.com")
-            print(f"   2. Get your auth token")
-            print(f"   3. Run: ngrok config add-authtoken YOUR_TOKEN")
-            return
-    else:
-        print(f"\n✅ Server running on local network")
-        print(f"\n📱 On your phone (same WiFi):")
-        print(f"\n   http://{local_ip}:{port}")
-        print(f"\n💻 On this computer:")
-        print(f"\n   http://localhost:{port}")
-        print(f"\n🔒 Note: Phone and computer must be on same WiFi")
-        print(f"\n💡 TIP: For PWA share feature, use --https flag:")
-        print(f"\n   python3 web_upload.py --https")
-    
-    print(f"\nPress Ctrl+C to stop\n")
-    print("="*70 + "\n")
+    print("=" * 60)
+    print("WhatsApp Chat to PDF - Web Upload Server")
+    print("=" * 60)
+    print(f"\n✅ Server started successfully!\n")
+    print(f"📱 On your phone, open:")
+    print(f"   http://{local_ip}:{args.port}")
+    print(f"\n💻 On this computer:")
+    print(f"   http://localhost:{args.port}")
+    print(f"\n🔧 Press Ctrl+C to stop the server\n")
+    print("=" * 60)
     
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n\n👋 Server stopped")
-        if args.https:
-            try:
-                ngrok.disconnect(public_url.public_url)
-                print("🔒 Tunnel closed")
-            except:
-                pass
         server.shutdown()
 
 
