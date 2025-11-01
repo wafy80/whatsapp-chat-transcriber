@@ -925,6 +925,8 @@ def main():
                        help='Enable HTTPS via cloudflared tunnel (required for PWA share on Android)')
     parser.add_argument('--ngrok', action='store_true',
                        help='Enable HTTPS via ngrok tunnel (alternative, shows warning page)')
+    parser.add_argument('--tunnel-name', type=str,
+                       help='Named cloudflared tunnel for persistent URL (requires cloudflare account setup)')
     parser.add_argument('--port', type=int, default=58080, help='Port to listen on (default: 58080)')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
     args = parser.parse_args()
@@ -933,7 +935,7 @@ def main():
     cloudflared_process = None
     
     # Start cloudflared tunnel if requested
-    if args.https:
+    if args.https or args.tunnel_name:
         try:
             import subprocess
             import time
@@ -944,36 +946,122 @@ def main():
             print("=" * 60)
             print(f"\n🚀 Starting cloudflared tunnel...\n")
             
-            # Start cloudflared in background
+            # Determine tunnel command
+            if args.tunnel_name:
+                # Named tunnel (persistent URL)
+                # First, try to get the tunnel info to extract the URL
+                try:
+                    info_result = subprocess.run(
+                        ['cloudflared', 'tunnel', 'info', args.tunnel_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    
+                    # Extract URL from tunnel info if available (only cloudflare domains)
+                    for line in info_result.stdout.split('\n'):
+                        if 'trycloudflare.com' in line or '.cfargotunnel.com' in line:
+                            match = re.search(r'https://[a-zA-Z0-9\-]+\.(trycloudflare|cfargotunnel)\.com', line)
+                            if match:
+                                https_url = match.group(0)
+                                break
+                except:
+                    pass
+                
+                cmd = ['cloudflared', 'tunnel', 'run', '--url', f'http://localhost:{port}', args.tunnel_name]
+                tunnel_type = "named"
+            else:
+                # Quick tunnel (temporary URL)
+                cmd = ['cloudflared', 'tunnel', '--url', f'http://localhost:{port}']
+                tunnel_type = "quick"
+            
+            # Start cloudflared in background (non-blocking)
             cloudflared_process = subprocess.Popen(
-                ['cloudflared', 'tunnel', '--url', f'http://localhost:{port}'],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1
             )
             
-            # Wait for URL to appear in output
-            https_url = None
-            for line in cloudflared_process.stdout:
-                print(line.strip())
-                if 'trycloudflare.com' in line or '.cfargotunnel.com' in line:
-                    match = re.search(r'https://[^\s]+', line)
-                    if match:
-                        https_url = match.group(0)
-                        break
+            # For named tunnels, try to get configured URL
+            configured_url = None
+            if tunnel_type == "named":
+                try:
+                    # Try to get the configured public hostname
+                    list_result = subprocess.run(
+                        ['cloudflared', 'tunnel', 'info', '-o', 'json', args.tunnel_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=3
+                    )
+                    # This might contain routing info, parse if available
+                except:
+                    pass
             
-            if https_url:
-                print("\n" + "=" * 60)
+            # Read initial output in a separate thread to detect URL
+            import threading
+            detected_url = [None]  # Use list to allow modification in thread
+            
+            def read_output():
+                max_lines = 30
+                lines_read = 0
+                for line in iter(cloudflared_process.stdout.readline, ''):
+                    print(line.strip())
+                    lines_read += 1
+                    
+                    # Look for cloudflare tunnel URLs
+                    if 'trycloudflare.com' in line and 'https://' in line:
+                        match = re.search(r'https://[a-zA-Z0-9\-]+\.trycloudflare\.com', line)
+                        if match and not detected_url[0]:
+                            detected_url[0] = match.group(0)
+                    
+                    if lines_read >= max_lines:
+                        break
+                
+                # Continue reading without blocking (keep showing output)
+                for line in iter(cloudflared_process.stdout.readline, ''):
+                    if line:
+                        print(line.strip())
+            
+            output_thread = threading.Thread(target=read_output, daemon=True)
+            output_thread.start()
+            
+            # Give cloudflared a moment to start
+            time.sleep(3)
+            
+            # Show status
+            print("\n" + "=" * 60)
+            print("WhatsApp Chat to PDF - Web Upload Server")
+            print("=" * 60)
+            # Show status
+            print("\n" + "=" * 60)
+            print("WhatsApp Chat to PDF - Web Upload Server")
+            print("=" * 60)
+            
+            if detected_url[0]:
                 print(f"\n✅ Server started with HTTPS tunnel!\n")
                 print(f"📱 Open this URL on your phone:")
-                print(f"   {https_url}")
-                print(f"\n💡 No warning page! You can use the PWA share feature on Android!")
-                print(f"\n🔧 Press Ctrl+C to stop the server\n")
-                print("=" * 60)
+                print(f"   {detected_url[0]}")
+                if tunnel_type == "named":
+                    print(f"\n🔒 Persistent URL (named tunnel): URL stays the same every time!")
+                else:
+                    print(f"\n⚠️ Temporary URL: Changes on every restart")
+                    print(f"   For persistent URL, use: python3 web_upload.py --tunnel-name YOUR_TUNNEL_NAME")
+            elif tunnel_type == "named":
+                print(f"\n✅ Named tunnel '{args.tunnel_name}' is running!")
+                print(f"\n📋 Your tunnel URL depends on DNS configuration.")
+                print(f"\n   To find your URL:")
+                print(f"   1. Check Cloudflare Zero Trust Dashboard:")
+                print(f"      https://one.dash.cloudflare.com/ → Access → Tunnels → {args.tunnel_name}")
+                print(f"   2. If you set up DNS route, use that domain")
+                print(f"   3. Run: cloudflared tunnel info {args.tunnel_name}")
             else:
-                print(f"\n⚠️ Cloudflared started but URL not detected yet")
-                print(f"   Check the output above for the tunnel URL\n")
+                print(f"\n⚠️ Cloudflared started, URL will appear in output above")
+            
+            print(f"\n💡 No warning page! You can use the PWA share feature on Android!")
+            print(f"\n🔧 Press Ctrl+C to stop the server\n")
+            print("=" * 60)
                 
         except FileNotFoundError:
             print(f"\n❌ ERROR: cloudflared not installed!")
@@ -983,6 +1071,10 @@ def main():
             print(f"            sudo chmod +x /usr/local/bin/cloudflared")
             print(f"   • macOS: brew install cloudflared")
             print(f"   • Windows: Download from https://github.com/cloudflare/cloudflared/releases")
+            print(f"\n   For persistent URL setup:")
+            print(f"   1. cloudflared tunnel login")
+            print(f"   2. cloudflared tunnel create chat2pdf")
+            print(f"   3. python3 web_upload.py --tunnel-name chat2pdf")
             print(f"\n   Or use ngrok instead: python3 web_upload.py --ngrok")
             return
         except Exception as e:
@@ -1045,7 +1137,7 @@ def main():
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n\n👋 Server stopped")
-        if args.https and cloudflared_process:
+        if (args.https or args.tunnel_name) and cloudflared_process:
             cloudflared_process.terminate()
             cloudflared_process.wait()
         if args.ngrok:

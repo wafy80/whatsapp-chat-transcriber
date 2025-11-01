@@ -103,16 +103,51 @@ Then on your phone:
 wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
 sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
 sudo chmod +x /usr/local/bin/cloudflared
+
 # macOS:
 brew install cloudflared
 
-# Start with HTTPS tunnel
+# Windows:
+# Method 1: Using Scoop (recommended)
+scoop install cloudflared
+# Method 2: Using Chocolatey
+choco install cloudflared
+# Method 3: Manual installation
+# 1. Download from: https://github.com/cloudflare/cloudflared/releases/latest
+#    (choose: cloudflared-windows-amd64.exe for 64-bit or cloudflared-windows-386.exe for 32-bit)
+# 2. Add the downloaded file to a folder (e.g., C:\Program Files\cloudflared\)
+# 3. Add this folder to your PATH:
+#    - Open Environment Variables: Win+R → sysdm.cpl → Environment Variables
+#    - Add the folder to the "Path" variable in System variables
+# 4. Restart your terminal
+
+# Start with HTTPS tunnel (temporary URL, changes on restart)
 python3 web_upload.py --https
+
+# For PERSISTENT URL (same URL every time):
+# Easy setup with helper script:
+./setup_tunnel.sh
+
+# Or manual setup:
+# 1. Login to Cloudflare (one time)
+cloudflared tunnel login
+# 2. Create a named tunnel (one time)
+cloudflared tunnel create chat2pdf
+# 3. Configure DNS route (one time)
+cloudflared tunnel route dns chat2pdf chat2pdf.yourdomain.com
+# 4. Run with your tunnel name
+python3 web_upload.py --tunnel-name chat2pdf
+# Your URL will be: https://chat2pdf.yourdomain.com
 
 # Option 2: ngrok (Alternative - Shows warning page on first visit)
 pip install pyngrok
 python3 web_upload.py --ngrok
 ```
+
+**Note on Persistent URLs:**
+- Named tunnels require a domain managed by Cloudflare (free account OK)
+- If you don't have a domain, use the quick tunnel (`--https`) - URL changes but it's instant
+- The helper script `setup_tunnel.sh` will guide you through the setup
 
 **Setup (one time only):**
 1. Open the **HTTPS URL** shown on your phone (e.g., `https://xxxx.trycloudflare.com` or `https://xxxx.ngrok-free.app`)
@@ -705,6 +740,7 @@ It uses the following open-source libraries:
 - OpenAI for the amazing Whisper model
 - The ReportLab team for PDF generation
 - The WeasyPrint team for HTML to PDF conversion
+- Cloudflare for cloudflared tunneling
 
 ---
 
