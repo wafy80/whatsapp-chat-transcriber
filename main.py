@@ -705,7 +705,7 @@ class WhatsAppChatToPDF:
                     msg_html = re.sub(r'\{\{#if this\.show_date\}\}.*?\{\{/if\}\}', '', msg_html, flags=re.DOTALL)
             else:
                 # Regular message
-                msg_html = re.sub(r'\{\{#if this\.is_system\}\}.*?\{\{else\}\}(.*?)\{\{/if\}\}', r'\1', msg_html, flags=re.DOTALL)
+                msg_html = re.sub(r'\{\{#if this\.is_system\}\}.*?\{\{else\}\}(.*)\{\{/if\}\}', r'\1', msg_html, flags=re.DOTALL)
                 
                 # Handle {{#unless this.is_system}} blocks (remove them for non-system messages)
                 msg_html = re.sub(r'\{\{#unless this\.is_system\}\}(.*?)\{\{/unless\}\}', r'\1', msg_html, flags=re.DOTALL)
